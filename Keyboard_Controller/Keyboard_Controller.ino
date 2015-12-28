@@ -55,6 +55,7 @@ void display(DisplayArea area, const char * text, int value) {
 }
 
 void display(DisplayArea area, const char *  text1, const char * text2) {
+  int columns = lcd_columns;
   switch(area) {
   case line1:
     lcd.setCursor(0,0);
@@ -62,17 +63,34 @@ void display(DisplayArea area, const char *  text1, const char * text2) {
   case line2:
     lcd.setCursor(0,1);
     break;
-    // TODO other positions, cut text
+  case line1left:
+    columns /= 2;
+    lcd.setCursor(0,0);
+    break;
+  case line1right:
+    columns /= 2;
+    lcd.setCursor(10,0);
+    break;
+  case line2left:
+    columns /= 2;
+    lcd.setCursor(0,1);
+    break;
+  case line2right:
+    columns /= 2;
+    lcd.setCursor(10,1);
+    break;
   }
   sprintf(buf, "%s %s", text1, text2);
+  //int i = min(strlen(buf), columns);
   int i = strlen(buf);
-  while (i < lcd_columns) {
+  while (i < columns) {
     buf[i] = ' ';
     i++;
   }
   buf[i] = '\0';
   lcd.print(buf);
 }
+
 
 /*--------------------------------- setup and main loop ---------------------------------*/
 
@@ -172,7 +190,7 @@ playing -- enter --> selectSound --> exit --> playing
 
 State state = playing;
 int last_pitch_val = 0;
-enum SD2Bank SD2_current_bank = Presets;
+enum SD2Bank SD2_current_bank = SD2Presets;
 int program_number = 0;
 
 void process(Event event, int value) {

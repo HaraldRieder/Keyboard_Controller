@@ -2,49 +2,61 @@
 
 /* Ketron SD-2 voice banks with control change values */
 enum SD2Bank {
-  Presets = 2,
+  SD2Presets = 2,
   BankA = 0,
   BankB = 1,
   BankC = 10,
   Drums = 4 
 };
 
+const int n_SD2_banks = 5;
+
 SD2Bank nextBank(SD2Bank current);
 SD2Bank prevBank(SD2Bank current);
 
 SD2Bank nextBank(SD2Bank current) {
   switch (current) {
-    case Presets: return BankA;
+    case SD2Presets: return BankA;
     case BankA: return BankB;
     case BankB: return BankC;
     case BankC: return Drums;
-    case Drums: return Presets;
+    case Drums: return SD2Presets;
   }
-  return Presets;
+  return SD2Presets;
 }
 
 SD2Bank prevBank(SD2Bank current) {
   switch (current) {
-    case Presets: return Drums;
-    case BankA: return Presets;
+    case SD2Presets: return Drums;
+    case BankA: return SD2Presets;
     case BankB: return BankA;
     case BankC: return BankB;
     case Drums: return BankC;
   }
-  return Presets;
+  return SD2Presets;
 }
 
 /**
- * Returns the name of the SD-2 sound bank as string.
+ * Returns the name of the SD-2 sound bank as string with a max. length of 5 characters.
  */
 String toString(SD2Bank bank) {
   switch (bank) {
-    case Presets: return "Presets";
+    case SD2Presets: return "Pres.";
     case BankA: return "BankA";
     case BankB: return "BankB";
     case BankC: return "BankC";
     case Drums: return "Drums";
   }
+}
+
+SD2Bank toSD2Bank(int index) {
+  switch (index) {
+    case 1: return BankA;
+    case 2: return BankB;
+    case 3: return BankC;
+    case 4: return Drums;
+  }
+  return SD2Presets;
 }
 
 const char PresetNames[][15] = {
@@ -160,7 +172,7 @@ String toString(SD2Bank bank, byte program_number) {
   if (program_number > 127)
     return "> 127?";
   switch (bank) {
-    case Presets: return PresetNames[program_number];
+    case SD2Presets: return PresetNames[program_number];
     case BankA: return BankANames[program_number];
     case BankB: return BankBNames[program_number];
     case BankC: return BankCNames[program_number];
@@ -168,5 +180,6 @@ String toString(SD2Bank bank, byte program_number) {
   }
   return "bank?"; // unknown bank
 }
+
 
 
