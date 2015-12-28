@@ -1,9 +1,10 @@
 #include <LiquidCrystal.h>
 #include <MIDI.h>
+#include <MemoryFree.h>
 #include "KetronSD2.h"
 #include "Keyboard_Controller.h"
 
-const char * MY_NAME = "Demian";
+const char * MY_NAME = "D E M I A N";
 
 LiquidCrystal lcd(27,26,25,24,23,22);
 
@@ -48,10 +49,16 @@ void display(DisplayArea area, const char *  text) {
   display(area, text, "");
 }
 
+void display(DisplayArea area, int value) {
+  char buf[8];
+  sprintf(buf, "%d", value);
+  display(area, buf, "");
+}
+
 void display(DisplayArea area, const char * text, int value) {
-  char buf2[8];
-  sprintf(buf2, "%d", value);
-  display(area, text, buf2);
+  char buf[8];
+  sprintf(buf, "%d", value);
+  display(area, text, buf);
 }
 
 void display(DisplayArea area, const char *  text1, const char * text2) {
@@ -117,10 +124,19 @@ void setup() {
   ext_switch_1_opener = (ext_switch_1_val == LOW);
   ext_switch_2_val = digitalRead(ext_switch_2_pin);
   ext_switch_2_opener = (ext_switch_2_val == LOW);
-  display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
-  display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
+  //display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
+  //display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
 
-  delay(1500);
+  const char * switch_modes;
+  if (ext_switch_1_opener) {
+    switch_modes = ext_switch_2_opener ? "1opn 2opn" : "1opn 2cls";
+  } else {
+    switch_modes = ext_switch_2_opener ? "1cls 2opn" : "1cls 2cls";
+  }
+  display(line1left, MY_NAME);
+  display(line2left, switch_modes);
+  display(line1right, freeMemory());
+  display(line2right, "bytes free");
 }
 
 void loop() {
@@ -194,12 +210,14 @@ enum SD2Bank SD2_current_bank = SD2Presets;
 int program_number = 0;
 
 void process(Event event, int value) {
+  boolean send = false;
   switch (state) {
     case playing:
       switch (event) {
         case enterBtn:
           state = selectSound;
           display(line1, "Sound");
+          display(line2, "");
           break;
       }
       break;
@@ -210,30 +228,152 @@ void process(Event event, int value) {
           display(line1, MY_NAME);
           break;
         case pitchWheel:
-          if (value > 0 && last_pitch_val <= 0) {
-            last_pitch_val = value;
-            SD2_current_bank = nextBank(SD2_current_bank);
-            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
+          // sound select, increment/decrement by 1 or by 10 
+          value /= (MIDI_PITCHBEND_MAX*3/10);
+          // now value is in [-3,-2,-1,0,1,2,3]
+          //display(line1, "value", value);
+          switch(value) {
+            case -3:
+              if (last_pitch_val > value) {
+                program_number = 0;
+                send = true;
+              }
+            case -2:
+              if (last_pitch_val > value) {
+                program_number = max(program_number-10, 0);
+                send = true;
+              }
+              break;
+            case -1:
+              if (last_pitch_val > value) {
+                program_number = max(program_number-1, 0);
+                send = true;
+              }
+              break;
+            case 1:
+              if (last_pitch_val < value) {
+                program_number = min(program_number+1, MIDI_CONTROLLER_MAX);
+                send = true;
+              }
+              break;
+            case 2:
+              if (last_pitch_val < value) {
+                program_number = min(program_number+10, MIDI_CONTROLLER_MAX);
+                send = true;
+              }
+              break;
+            case 3:
+              if (last_pitch_val < value) {
+                program_number = MIDI_CONTROLLER_MAX;
+                send = true;
+              }
+          }
+          last_pitch_val = value;
+          if (send)
             midi3.sendProgramChange(program_number, 1);
-          }
-          else if (value < 0 && last_pitch_val >= 0) {
-            last_pitch_val = value;
-            SD2_current_bank = prevBank(SD2_current_bank);
-            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
-            midi3.sendProgramChange(program_number, 1);
-          }
-          else if (value == 0) {
-            last_pitch_val = value;
-          }
           break;
         case modWheel:
-          midi3.sendProgramChange(program_number = value, 1);
+          // bank select, program number remains unchanged
+          value = value * n_SD2_banks / (MIDI_CONTROLLER_MAX+1);
+          SD2Bank bank = toSD2Bank(value);
+          if (bank != SD2_current_bank) {
+            SD2_current_bank = bank;
+            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
+            midi3.sendProgramChange(program_number, 1);
+          }
           break;
       }
-      display(line2, toString(SD2_current_bank).c_str(), program_number);
-      break;
+      // display bank name and program number starting with 1
+      display(line2left, toString(SD2_current_bank), program_number+1);
+      // display program name
+      display(line2right, toString(SD2_current_bank, program_number));
+      break; // end selectSound
   }
 }
+/*
+void process(Event event, int value) {
+  boolean send = false;
+  switch (state) {
+    case playing:
+      switch (event) {
+        case enterBtn:
+          state = selectSound;
+          display(line1, "Sound");
+          display(line2, "");
+          break;
+      }
+      break;
+    case selectSound:
+      switch (event) {
+        case exitBtn:
+          state = playing;
+          display(line1, MY_NAME);
+          break;
+        case pitchWheel:
+          return;
+          // sound select, increment/decrement by 1 or by 10 
+          value /= (MIDI_PITCHBEND_MAX*3/10);
+          // now value is in [-3,-2,-1,0,1,2,3]
+          //display(line1, "value", value);
+          switch(value) {
+            case -3:
+              if (last_pitch_val > value) {
+                program_number = 0;
+                send = true;
+              }
+            case -2:
+              if (last_pitch_val > value) {
+                program_number = max(program_number-10, 0);
+                send = true;
+              }
+              break;
+            case -1:
+              if (last_pitch_val > value) {
+                program_number = max(program_number-1, 0);
+                send = true;
+              }
+              break;
+            case 1:
+              if (last_pitch_val < value) {
+                program_number = min(program_number+1, MIDI_CONTROLLER_MAX);
+                send = true;
+              }
+              break;
+            case 2:
+              if (last_pitch_val < value) {
+                program_number = min(program_number+10, MIDI_CONTROLLER_MAX);
+                send = true;
+              }
+              break;
+            case 3:
+              if (last_pitch_val < value) {
+                program_number = MIDI_CONTROLLER_MAX;
+                send = true;
+              }
+          }
+          last_pitch_val = value;
+          if (send)
+            midi3.sendProgramChange(program_number, 1);
+          break;
+        case modWheel:
+          // bank select, program number remains unchanged
+          value = value * n_SD2_banks / MIDI_CONTROLLER_MAX;
+          SD2Bank bank = toSD2Bank(value);
+          if (bank != SD2_current_bank) {
+            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
+            midi3.sendProgramChange(program_number, 1);
+          }
+          break;
+      }
+      // display bank name and program number starting with 1
+      display(line2left, toString(SD2_current_bank).c_str(), program_number+1);
+      // display program name
+      display(line2right, toString(SD2_current_bank, program_number).c_str());
+      break; // end selectSound
+  }
+}
+*/
+
 
 /*--------------------------------- external switches ---------------------------------*/
 
@@ -339,29 +479,9 @@ void handleModWheel(unsigned int inval) {
 
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
-  /*
-  lcd.setCursor(0,0);
-  lcd.print("note on");
-  lcd.print((int)channel);
-  lcd.print(" nt");
-  lcd.print((int)note);
-  lcd.print(" vl");
-  lcd.print((int)velocity);
-  lcd.print("    ");
-  */
 }
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
-  /*
-  lcd.setCursor(0,0);
-  lcd.print("note off");
-  lcd.print((int)channel);
-  lcd.print(" nt");
-  lcd.print((int)note);
-  lcd.print(" vl");
-  lcd.print((int)velocity);
-  lcd.print("    ");
-  */
 }
 
 

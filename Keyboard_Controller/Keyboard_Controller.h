@@ -3,6 +3,7 @@ enum DisplayArea {
 
 /* display text on the given display area */
 void display(DisplayArea area, const char *  text);
+void display(DisplayArea area, int value);
 void display(DisplayArea area, const char *  text1, const char * text2);
 void display(DisplayArea area, const char *  text, int value);
 
