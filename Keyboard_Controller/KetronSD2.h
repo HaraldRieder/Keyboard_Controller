@@ -9,9 +9,7 @@ enum SD2Bank {
   Drums = 4 
 };
 
-// Attention: Mega 2560 has only 8k SRAM. 
-// Therefore do not use presets bank, sounds are either duplicate (in banks A..C).
-const int n_SD2_banks = 3;
+const int n_SD2_banks = 5;
 
 /**
  * Returns the name of the SD-2 sound bank as string with a max. length of 5 characters.
@@ -32,11 +30,14 @@ SD2Bank toSD2Bank(int index) {
     case 1: return BankB;
     case 2: return BankC;
     case 3: return Drums;
+    case 4: return SD2Presets;
   }
   return SD2Presets;
 }
 
-const char PresetNames[][15] = {
+const int MAX_NAME_LEN = 14;
+
+PROGMEM const char PresetNames[][MAX_NAME_LEN+1] = {
 // Piano
 "Grand Piano","Rock Piano","Honky Tonk","Clavinet",
 // Electric Piano
@@ -69,7 +70,7 @@ const char PresetNames[][15] = {
 "Banjo","Mandolin","Sitar","Cuatro","Hackbrett","Peruvian"
 };
 
-const char BankANames[][15] = {
+PROGMEM const char BankANames[][MAX_NAME_LEN+1] = {
 "Grand Piano","Rock Piano","Upright Piano","Honky Tonk","Rhodes","DX Piano","Harpsichord","Clavinet",
 "Celesta","Glocken","Music Box","Vibraphon","Marimba","Xylophon","Bell","Santur",
 "Leslies","Jazz Organ 1","Rock Organ B3","Church Organ","Theatre Organ","Musette","Harmonica","Accordion",
@@ -88,7 +89,7 @@ const char BankANames[][15] = {
 "Fretslide","Breath","Seashore","Bird","Telephone","Helicopter","Applause","Gun Shot"
 };
 
-const char BankBNames[][15] = {
+PROGMEM const char BankBNames[][MAX_NAME_LEN+1] = {
 "Jingle","Electric","House","ELO Piano","Vintage","Funky Piano","FM Piano 1","FM Piano 2",
 "Toy Box","Chimes","Mallets","Long Vibes","Malimba","Mellow","Tinkles","Wind Chimes",
 "Rotary","Jazz Organ 2","Drawbar","Positive","Master","Francaise","Cassotto","Tango",
@@ -107,7 +108,7 @@ const char BankBNames[][15] = {
 "Effects 1","Effects 2","Effects 3","Effects 4","Effects 5","Effects 6","Effects 7","Effects 8"
 };
 
-const char BankCNames[][15] = {
+PROGMEM const char BankCNames[][MAX_NAME_LEN+1] = {
 "Grand mono","Rock mono","Piano L","Piano R","Mark","Stage Piano","Rhodes low","Rhodes high",
 "Celestial","China","Air Bell","Dry Vibes","Malimba","Wood Mallet","Glock&Pad","EPiano&Strings",
 "Whiter","Rock Slow","Rock Fast","Pipe Organ","Gospel Organ","Fisa","Diatonic","Alpen",
@@ -126,7 +127,7 @@ const char BankCNames[][15] = {
 "Scratch 1","Scratch 2","Scratch 3","Scratch 4","Scratch 5","Fx Slap","Laser","Wind"
 };
 
-const char LiveDrumNames[][15] = {
+PROGMEM const char LiveDrumNames[][MAX_NAME_LEN+1] = {
 "Bachata","Bolero 1","Chacha 1","Cumbia 1","Guajra 1","Mambo","Salsa 1","Rumba 1",
 "Merengue 1","Merengue 2","Congas 1","Congas 2","Gipsy 1","Maracas 1","Tambourine","Brush",
 "","","","","Dance 1","","Ethnic 1","Ethnic 2",
@@ -145,17 +146,31 @@ const char LiveDrumNames[][15] = {
 "","","","","","","",""
 };
 
+char name_buffer[MAX_NAME_LEN+1]; 
+
 const char * toString(SD2Bank bank, byte program_number) {
   if (program_number > 127)
-    return "> 127?";
+    return "prg > 127?";
   switch (bank) {
-    //case SD2Presets: return PresetNames[program_number];
-    case BankA: return BankANames[program_number];
-    case BankB: return BankBNames[program_number];
-    case BankC: return BankCNames[program_number];
-    //case Drums: return LiveDrumNames[program_number];
+    case SD2Presets: 
+      strcpy_P(name_buffer, &(PresetNames[program_number][0]));
+      break;
+    case BankA: 
+      strcpy_P(name_buffer, &(BankANames[program_number][0]));
+      break;
+    case BankB:
+      strcpy_P(name_buffer, &(BankBNames[program_number][0]));
+      break;
+    case BankC:
+      strcpy_P(name_buffer, &(BankCNames[program_number][0]));
+      break;
+    case Drums: 
+      strcpy_P(name_buffer, &(LiveDrumNames[program_number][0]));
+      break;
+    default:
+      return "bank?"; // unknown bank
   }
-  return "bank?"; // unknown bank
+  return name_buffer;
 }
 
 

@@ -4,7 +4,7 @@
 #include "KetronSD2.h"
 #include "Keyboard_Controller.h"
 
-const char * MY_NAME = "D E M I A N";
+const char * MY_NAME = "DEMIAN";
 
 LiquidCrystal lcd(27,26,25,24,23,22);
 
