@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <LiquidCrystal.h>
 #include <MIDI.h>
 #include <MemoryFree.h>
@@ -8,8 +9,6 @@ const char * MY_NAME = "DEMIAN";
 
 LiquidCrystal lcd(27,26,25,24,23,22);
 
-// max. value of a MIDI controller
-const int MIDI_CONTROLLER_MAX = 127;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
 
@@ -200,7 +199,8 @@ void loop() {
 /*--------------------------------- state event machine ---------------------------------*/
 /*
 
-playing -- enter --> selectSound --> exit --> playing
+playing ---enter--> selectSound ---exit--> playing (selected sound)
+selectSound ---enter---> selectPreset ---exit--> playing (selected preset)
 
 */
 
@@ -208,9 +208,70 @@ State state = playing;
 int last_pitch_val = 0;
 enum SD2Bank SD2_current_bank = SD2Presets;
 int program_number = 0;
+int preset_number = 0;
+Preset currentPreset;
 
+/**
+ * increment/decrement target value by 1 or by 10 (depending on change of pb_value)
+ * @param value pitch bend value from MIDI_PITCHBEND_MIN to MIDI_PITCHBEND_MAX
+ * @param min_value minimum allowed value for target_value
+ * @param max_value maximum allowed value for target_value
+ * @param target_value to be incremented/decremented
+ * @param true if target_value has been changed
+ */
+boolean handlePitchWheelEvent(int value, const int min_value, const int max_value, int * target_value) {
+    boolean changed = false;
+    value /= (MIDI_PITCHBEND_MAX*3/10);
+    // now value is in [-3,-2,-1,0,1,2,3]
+    //display(line1, "value", value);
+    switch(value) {
+      case -3:
+        if (last_pitch_val > value) {
+          * target_value = min_value;
+          changed = true;
+        }
+        break;
+      case -2:
+        if (last_pitch_val > value) {
+          * target_value = max(* target_value - 10, min_value);
+          changed = true;
+        }
+        break;
+      case -1:
+        if (last_pitch_val > value) {
+          * target_value = max(* target_value - 1, min_value);
+          changed = true;
+        }
+        break;
+      case 1:
+        if (last_pitch_val < value) {
+          * target_value = min(* target_value + 1, max_value);
+          changed = true;
+        }
+        break;
+      case 2:
+        if (last_pitch_val < value) {
+          * target_value = min(* target_value + 10, max_value);
+          changed = true;
+        }
+        break;
+      case 3:
+        if (last_pitch_val < value) {
+          * target_value = max_value;
+          changed = true;
+        }
+        break;
+    }
+    last_pitch_val = value;
+    return changed;
+}
+
+/**
+ * The state event machine for the user interface.
+ * @param event user action
+ * @value optional value, meaning depends on event type
+ */
 void process(Event event, int value) {
-  boolean send = false;
   switch (state) {
     case playing:
       switch (event) {
@@ -227,49 +288,14 @@ void process(Event event, int value) {
           state = playing;
           display(line1, MY_NAME);
           break;
+        case enterBtn:
+          state = selectPreset;
+          display(line1, "Preset");
+          display(line2, "");
+          break;
         case pitchWheel:
           // sound select, increment/decrement by 1 or by 10 
-          value /= (MIDI_PITCHBEND_MAX*3/10);
-          // now value is in [-3,-2,-1,0,1,2,3]
-          //display(line1, "value", value);
-          switch(value) {
-            case -3:
-              if (last_pitch_val > value) {
-                program_number = 0;
-                send = true;
-              }
-            case -2:
-              if (last_pitch_val > value) {
-                program_number = max(program_number-10, 0);
-                send = true;
-              }
-              break;
-            case -1:
-              if (last_pitch_val > value) {
-                program_number = max(program_number-1, 0);
-                send = true;
-              }
-              break;
-            case 1:
-              if (last_pitch_val < value) {
-                program_number = min(program_number+1, MIDI_CONTROLLER_MAX);
-                send = true;
-              }
-              break;
-            case 2:
-              if (last_pitch_val < value) {
-                program_number = min(program_number+10, MIDI_CONTROLLER_MAX);
-                send = true;
-              }
-              break;
-            case 3:
-              if (last_pitch_val < value) {
-                program_number = MIDI_CONTROLLER_MAX;
-                send = true;
-              }
-          }
-          last_pitch_val = value;
-          if (send)
+          if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number))
             midi3.sendProgramChange(program_number, 1);
           break;
         case modWheel:
@@ -288,92 +314,36 @@ void process(Event event, int value) {
       // display program name
       display(line2right, toString(SD2_current_bank, program_number));
       break; // end selectSound
-  }
-}
-/*
-void process(Event event, int value) {
-  boolean send = false;
-  switch (state) {
-    case playing:
-      switch (event) {
-        case enterBtn:
-          state = selectSound;
-          display(line1, "Sound");
-          display(line2, "");
-          break;
-      }
-      break;
-    case selectSound:
+    case selectPreset:
       switch (event) {
         case exitBtn:
           state = playing;
           display(line1, MY_NAME);
           break;
         case pitchWheel:
-          return;
-          // sound select, increment/decrement by 1 or by 10 
-          value /= (MIDI_PITCHBEND_MAX*3/10);
-          // now value is in [-3,-2,-1,0,1,2,3]
-          //display(line1, "value", value);
-          switch(value) {
-            case -3:
-              if (last_pitch_val > value) {
-                program_number = 0;
-                send = true;
-              }
-            case -2:
-              if (last_pitch_val > value) {
-                program_number = max(program_number-10, 0);
-                send = true;
-              }
-              break;
-            case -1:
-              if (last_pitch_val > value) {
-                program_number = max(program_number-1, 0);
-                send = true;
-              }
-              break;
-            case 1:
-              if (last_pitch_val < value) {
-                program_number = min(program_number+1, MIDI_CONTROLLER_MAX);
-                send = true;
-              }
-              break;
-            case 2:
-              if (last_pitch_val < value) {
-                program_number = min(program_number+10, MIDI_CONTROLLER_MAX);
-                send = true;
-              }
-              break;
-            case 3:
-              if (last_pitch_val < value) {
-                program_number = MIDI_CONTROLLER_MAX;
-                send = true;
-              }
-          }
-          last_pitch_val = value;
-          if (send)
-            midi3.sendProgramChange(program_number, 1);
-          break;
-        case modWheel:
-          // bank select, program number remains unchanged
-          value = value * n_SD2_banks / MIDI_CONTROLLER_MAX;
-          SD2Bank bank = toSD2Bank(value);
-          if (bank != SD2_current_bank) {
-            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
-            midi3.sendProgramChange(program_number, 1);
+          // preset select, increment/decrement by 1 or by 10 
+          if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
+            currentPreset = readPreset(preset_number);
+            // TODO send MIDI 
           }
           break;
       }
-      // display bank name and program number starting with 1
-      display(line2left, toString(SD2_current_bank).c_str(), program_number+1);
-      // display program name
-      display(line2right, toString(SD2_current_bank, program_number).c_str());
-      break; // end selectSound
+      if (currentPreset.foot.bank != invalid) 
+        display(line1right, toString((SD2Bank)currentPreset.foot.bank, currentPreset.foot.program_number));
+      else 
+        display(line1right, preset_number);
+      if (currentPreset.split_point != invalid) {
+        display(line2left, toString((SD2Bank)currentPreset.left.bank, currentPreset.left.program_number));
+        display(line2right, toString((SD2Bank)currentPreset.right.bank, currentPreset.right.program_number));
+      }
+      else if (currentPreset.right.bank != invalid) 
+        display(line2, toString((SD2Bank)currentPreset.right.bank, currentPreset.right.program_number));
+      else {
+        display(line2, "Invalid Preset!");
+      }
+      break; // end selectPreset
   }
 }
-*/
-
 
 /*--------------------------------- external switches ---------------------------------*/
 
