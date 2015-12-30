@@ -36,6 +36,13 @@ int mod_wheel_val;
 const int data_entry_pin = A2;
 int data_val;
 
+/* number of current preset, initially the first preset saved in EEPROM */
+int preset_number = 0;
+Preset currentPreset;
+
+midi::Channel sound_channel = 1;
+midi::Channel right_channel = 1, left_channel = 2, foot_channel = 3;
+
 /*--------------------------------- LCD display ---------------------------------*/
 
 const int lcd_columns = 20;
@@ -113,11 +120,11 @@ void setup() {
   pinMode(push_btn_exit_pin, INPUT_PULLUP);
 
   //  int channel = 1;
-  int channel = MIDI_CHANNEL_OMNI;
+  midi::Channel channel = MIDI_CHANNEL_OMNI;
   midi3.setHandleNoteOn(handleNoteOn);
   midi3.setHandleNoteOff(handleNoteOff);
   midi3.begin(channel);
-  midi2.begin(channel);
+//  midi2.begin(channel);
 
   ext_switch_1_val = digitalRead(ext_switch_1_pin);
   ext_switch_1_opener = (ext_switch_1_val == LOW);
@@ -136,6 +143,8 @@ void setup() {
   display(line2left, switch_modes);
   display(line1right, freeMemory());
   display(line2right, "bytes free");
+  
+  readPreset(preset_number, currentPreset);
 }
 
 void loop() {
@@ -198,18 +207,155 @@ void loop() {
 
 /*--------------------------------- state event machine ---------------------------------*/
 /*
-
 playing ---enter--> selectSound ---exit--> playing (selected sound)
 selectSound ---enter---> selectPreset ---exit--> playing (selected preset)
-
 */
 
 State state = playing;
-int last_pitch_val = 0;
-enum SD2Bank SD2_current_bank = SD2Presets;
-int program_number = 0;
-int preset_number = 0;
-Preset currentPreset;
+
+/**
+ * The state event machine for the user interface.
+ * @param event user action
+ * @value optional value, meaning depends on event type
+ */
+void process(Event event, int value) {
+  static enum SD2Bank SD2_current_bank = SD2Presets;
+  static int program_number = 0;
+
+  switch (state) {
+
+    case playing:
+      switch (event) {
+        case enterBtn:
+          state = selectSound;
+          sendSound(SD2_current_bank, program_number, sound_channel);
+          displaySound(SD2_current_bank, program_number);
+          return;
+      }
+      return;
+
+    case selectSound:
+      switch (event) {
+        case exitBtn:
+          state = playing;
+          display(line1, MY_NAME);
+          return;
+        case enterBtn:
+          state = selectPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number);
+          return;
+        case pitchWheel:
+          // sound select, increment/decrement by 1 or by 10 
+          if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
+            midi3.sendProgramChange(program_number, sound_channel);
+            displaySound(SD2_current_bank, program_number);
+          }
+          return;
+        case modWheel:
+          // bank select, program number remains unchanged
+          value = value * n_SD2_banks / (MIDI_CONTROLLER_MAX+1);
+          SD2Bank bank = toSD2Bank(value);
+          if (bank != SD2_current_bank) {
+            SD2_current_bank = bank;
+            sendSound(SD2_current_bank, program_number, sound_channel);
+            displaySound(SD2_current_bank, program_number);
+          }
+          return;
+      }
+      return;
+
+    case selectPreset:
+      switch (event) {
+        case exitBtn:
+          state = playing;
+          display(line1left, MY_NAME);
+          return;
+        case pitchWheel:
+          // preset select, increment/decrement by 1 or by 10 
+          if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
+            readPreset(preset_number, currentPreset);
+            sendPreset(currentPreset);
+            displayPreset(currentPreset, preset_number);
+          }
+          return;
+        case modWheel:
+          value = value * n_presets / (MIDI_CONTROLLER_MAX+1);
+          if (value != preset_number) {
+            preset_number = value;
+            readPreset(preset_number, currentPreset);
+            sendPreset(currentPreset);
+            displayPreset(currentPreset, preset_number);
+          }
+          return;
+      }
+      return; 
+  }
+}
+
+/**
+ * Displays "Sound" in line 1 of the LCD.
+ * Displays bank name, program number (starting with 1) and program name in line 2.
+ */ 
+void displaySound(SD2Bank bank, int number) {
+  display(line1, "Sound");
+  // display bank name and program number starting with 1
+  display(line2left, toString(bank), number+1);
+  // display program name
+  display(line2right, toString(bank, number));
+}
+
+/**
+ * Displays "Pres." and preset number (starting with 1) in line 1 on the left of the LCD.
+ * Displays program names of right, left, foot in the 3 other areas of the LCD.
+ */ 
+void displayPreset(const Preset & preset, int number) {
+  display(line1, "Preset", number+1);
+  if (preset.foot.bank != invalid) 
+    display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
+  else 
+    display(line1right, preset_number);
+  if (preset.split_point != invalid) {
+    display(line2left, toString((SD2Bank)(preset.left.bank), preset.left.program_number));
+    display(line2right, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+  }
+  else if (preset.right.bank != invalid) 
+    display(line2, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+  else 
+    display(line2, "Invalid Preset!");
+}
+
+/**
+ * Sends bank select and program change MIDI messages on channel.
+ * @param channel MIDI channel 1..16
+ */
+void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel) {
+    midi3.sendControlChange(midi::BankSelect, (midi::DataByte)bank, channel);
+    midi3.sendProgramChange(program_number, channel);
+}
+
+/**
+ * Sends sound settings of 1 preset part to MIDI.
+ */ 
+void sendSound(const Sound & sound, midi::Channel channel) {
+  sendSound((SD2Bank)sound.bank, sound.program_number, channel);
+  midi3.sendControlChange(midi::ChannelVolume, sound.volume, channel);
+  midi3.sendControlChange(midi::Pan, sound.pan, channel);
+  midi3.sendControlChange(0x5b, sound.reverb_send, channel); // SD-2, non-standard
+  midi3.sendControlChange(0x5d, sound.effects_send, channel); // SD-2, non-standard
+}
+
+/**
+ * Sends all sound settings of the given preset to MIDI.
+ */
+void sendPreset(const Preset & preset) {
+  if (preset.foot.bank != invalid)
+    sendSound(preset.foot, foot_channel); 
+  if (preset.left.bank != invalid)
+    sendSound(preset.left, left_channel); 
+  if (preset.right.bank != invalid)
+    sendSound(preset.right, right_channel); 
+}
 
 /**
  * increment/decrement target value by 1 or by 10 (depending on change of pb_value)
@@ -220,129 +366,51 @@ Preset currentPreset;
  * @param true if target_value has been changed
  */
 boolean handlePitchWheelEvent(int value, const int min_value, const int max_value, int * target_value) {
-    boolean changed = false;
-    value /= (MIDI_PITCHBEND_MAX*3/10);
-    // now value is in [-3,-2,-1,0,1,2,3]
-    //display(line1, "value", value);
-    switch(value) {
-      case -3:
-        if (last_pitch_val > value) {
-          * target_value = min_value;
-          changed = true;
-        }
-        break;
-      case -2:
-        if (last_pitch_val > value) {
-          * target_value = max(* target_value - 10, min_value);
-          changed = true;
-        }
-        break;
-      case -1:
-        if (last_pitch_val > value) {
-          * target_value = max(* target_value - 1, min_value);
-          changed = true;
-        }
-        break;
-      case 1:
-        if (last_pitch_val < value) {
-          * target_value = min(* target_value + 1, max_value);
-          changed = true;
-        }
-        break;
-      case 2:
-        if (last_pitch_val < value) {
-          * target_value = min(* target_value + 10, max_value);
-          changed = true;
-        }
-        break;
-      case 3:
-        if (last_pitch_val < value) {
-          * target_value = max_value;
-          changed = true;
-        }
-        break;
-    }
-    last_pitch_val = value;
-    return changed;
-}
-
-/**
- * The state event machine for the user interface.
- * @param event user action
- * @value optional value, meaning depends on event type
- */
-void process(Event event, int value) {
-  switch (state) {
-    case playing:
-      switch (event) {
-        case enterBtn:
-          state = selectSound;
-          display(line1, "Sound");
-          display(line2, "");
-          break;
+  static int last_pitch_val = 0;
+  boolean changed = false;
+  value /= (MIDI_PITCHBEND_MAX*3/10);
+  // now value is in [-3,-2,-1,0,1,2,3]
+  //display(line1, "value", value);
+  switch(value) {
+    case -3:
+      if (last_pitch_val > value) {
+        * target_value = min_value;
+        changed = true;
       }
       break;
-    case selectSound:
-      switch (event) {
-        case exitBtn:
-          state = playing;
-          display(line1, MY_NAME);
-          break;
-        case enterBtn:
-          state = selectPreset;
-          display(line1, "Preset");
-          display(line2, "");
-          break;
-        case pitchWheel:
-          // sound select, increment/decrement by 1 or by 10 
-          if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number))
-            midi3.sendProgramChange(program_number, 1);
-          break;
-        case modWheel:
-          // bank select, program number remains unchanged
-          value = value * n_SD2_banks / (MIDI_CONTROLLER_MAX+1);
-          SD2Bank bank = toSD2Bank(value);
-          if (bank != SD2_current_bank) {
-            SD2_current_bank = bank;
-            midi3.sendControlChange(midi::BankSelect, SD2_current_bank, 1);
-            midi3.sendProgramChange(program_number, 1);
-          }
-          break;
+    case -2:
+      if (last_pitch_val > value) {
+        * target_value = max(* target_value - 10, min_value);
+        changed = true;
       }
-      // display bank name and program number starting with 1
-      display(line2left, toString(SD2_current_bank), program_number+1);
-      // display program name
-      display(line2right, toString(SD2_current_bank, program_number));
-      break; // end selectSound
-    case selectPreset:
-      switch (event) {
-        case exitBtn:
-          state = playing;
-          display(line1, MY_NAME);
-          break;
-        case pitchWheel:
-          // preset select, increment/decrement by 1 or by 10 
-          if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
-            currentPreset = readPreset(preset_number);
-            // TODO send MIDI 
-          }
-          break;
+      break;
+    case -1:
+      if (last_pitch_val > value) {
+        * target_value = max(* target_value - 1, min_value);
+        changed = true;
       }
-      if (currentPreset.foot.bank != invalid) 
-        display(line1right, toString((SD2Bank)currentPreset.foot.bank, currentPreset.foot.program_number));
-      else 
-        display(line1right, preset_number);
-      if (currentPreset.split_point != invalid) {
-        display(line2left, toString((SD2Bank)currentPreset.left.bank, currentPreset.left.program_number));
-        display(line2right, toString((SD2Bank)currentPreset.right.bank, currentPreset.right.program_number));
+      break;
+    case 1:
+      if (last_pitch_val < value) {
+        * target_value = min(* target_value + 1, max_value);
+        changed = true;
       }
-      else if (currentPreset.right.bank != invalid) 
-        display(line2, toString((SD2Bank)currentPreset.right.bank, currentPreset.right.program_number));
-      else {
-        display(line2, "Invalid Preset!");
+      break;
+    case 2:
+      if (last_pitch_val < value) {
+        * target_value = min(* target_value + 10, max_value);
+        changed = true;
       }
-      break; // end selectPreset
+      break;
+    case 3:
+      if (last_pitch_val < value) {
+        * target_value = max_value;
+        changed = true;
+      }
+      break;
   }
+  last_pitch_val = value;
+  return changed;
 }
 
 /*--------------------------------- external switches ---------------------------------*/
