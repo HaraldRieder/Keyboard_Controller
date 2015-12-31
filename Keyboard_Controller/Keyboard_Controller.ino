@@ -68,39 +68,50 @@ void display(DisplayArea area, const char * text, int value) {
 }
 
 void display(DisplayArea area, const char *  text1, const char * text2) {
+  // defaults fitting to line1 area
   int columns = lcd_columns;
+  int col = 0;
+  int row = 0;
   switch(area) {
-  case line1:
-    lcd.setCursor(0,0);
-    break;
-  case line2:
-    lcd.setCursor(0,1);
-    break;
-  case line1left:
-    columns /= 2;
-    lcd.setCursor(0,0);
-    break;
-  case line1right:
-    columns /= 2;
-    lcd.setCursor(10,0);
-    break;
-  case line2left:
-    columns /= 2;
-    lcd.setCursor(0,1);
-    break;
-  case line2right:
-    columns /= 2;
-    lcd.setCursor(10,1);
-    break;
+    case line2:
+      row = 1;
+      break;
+    case line1left:
+      columns /= 2;
+      break;
+    case line1right:
+      columns /= 2;
+      col = columns;
+      break;
+    case line2left:
+      columns /= 2;
+      row = 1;
+      break;
+    case line2right:
+      columns /= 2;
+      col = columns;
+      row = 1;      
+      break;
   }
-  sprintf(buf, "%s %s", text1, text2);
-  //int i = min(strlen(buf), columns);
-  int i = strlen(buf);
-  while (i < columns) {
+  // clear area
+  int i;
+  for (i = 0; i < columns; i++) 
     buf[i] = ' ';
-    i++;
-  }
   buf[i] = '\0';
+  lcd.setCursor(col, row);
+  lcd.print(buf);
+  // print text
+  if (text2 == NULL || *text2 == '\0') 
+    strncpy(buf, text1, columns);
+  else
+    sprintf(buf, "%s %s", text1, text2);
+  int len = min(strlen(buf), columns);
+  if (col == 0) 
+    // left aligned
+    lcd.setCursor(col, row);
+  else
+    // right aligned
+    lcd.setCursor(col + columns - len, row);
   lcd.print(buf);
 }
 
