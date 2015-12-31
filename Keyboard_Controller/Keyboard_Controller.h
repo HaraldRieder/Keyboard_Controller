@@ -161,10 +161,28 @@ void defaultPreset(Preset & preset) {
 
 /*--------------------------------- state event machine ---------------------------------*/
 
+const int n_parameter_sets = 4;
+
+enum ParameterSet {
+  CommonSettings, Foot, Left, Right  
+};
+
+enum CommonParameter {
+  SplitParam
+};
+
+enum SoundParameter {
+  BankParam, ProgNoParam, TransposeParam, VolumeParam, PanParam, 
+  ReverbParam, EffectsParam, ModAssign, PitchAssign, Switch1Assign, Switch2Assign
+};
+
 enum State {
   playing, // normal state after power on
   selectSound,
-  selectPreset
+  selectPreset,
+  editPreset,
+  editPresetCommon,
+  editPresetSound
 };
 
 enum Event {

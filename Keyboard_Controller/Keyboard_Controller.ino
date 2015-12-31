@@ -230,8 +230,13 @@ State state = playing;
  * @value optional value, meaning depends on event type
  */
 void process(Event event, int value) {
+  // TODO right of preset might be re-cycled for sound ?
   static enum SD2Bank SD2_current_bank = SD2Presets;
   static int program_number = 0;
+  static ParameterSet parameter_set = CommonSettings;
+  static CommonParameter common_parameter = SplitParam;
+  static SoundParameter sound_parameter = BankParam;
+  static Sound & editedSound = currentPreset.right;
 
   switch (state) {
 
@@ -282,6 +287,11 @@ void process(Event event, int value) {
           state = playing;
           display(line1left, MY_NAME);
           return;
+        case enterBtn:
+          state = editPreset;
+          display(line1, "Edit Preset");
+          displayParameterSet(line2, currentPreset, parameter_set);
+          return;
         case pitchWheel:
           // preset select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
@@ -298,6 +308,72 @@ void process(Event event, int value) {
             sendPreset(currentPreset);
             displayPreset(currentPreset, preset_number);
           }
+          return;
+      }
+      return; 
+    
+    case editPreset:
+      switch (event) {
+        case exitBtn:
+          // TODO if changed ask whether it shall be saved
+          state = selectPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number);
+          return;
+        case enterBtn:
+          switch (parameter_set) {
+            case CommonSettings:
+              state = editPresetCommon;
+              break;
+            case Foot:
+              state = editPresetSound;
+              editedSound = currentPreset.foot;
+              break;
+            case Left:
+              state = editPresetSound;
+              editedSound = currentPreset.split_point == invalid ? currentPreset.right : currentPreset.left;
+              break;
+            case Right:
+              state = editPresetSound;
+              editedSound = currentPreset.right;
+              break;
+          }
+          displayParameterSet(line1, currentPreset, parameter_set);
+          return;
+        case modWheel:
+          value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1);
+          if (value != parameter_set) {
+            parameter_set = (ParameterSet)value;
+            displayParameterSet(line2, currentPreset, parameter_set);
+          }
+          return;
+      }
+      return; 
+      
+    case editPresetCommon:
+      switch (event) {
+        case exitBtn:
+          state = editPreset;
+          display(line1, "Edit Preset");
+          displayParameterSet(line2, currentPreset, parameter_set);
+          return;
+        case enterBtn:
+          return;
+        case modWheel:
+          return;
+      }
+      return; 
+      
+    case editPresetSound:
+      switch (event) {
+        case exitBtn:
+          state = editPreset;
+          display(line1, "Edit Preset");
+          displayParameterSet(line2, currentPreset, parameter_set);
+          return;
+        case enterBtn:
+          return;
+        case modWheel:
           return;
       }
       return; 
@@ -366,6 +442,19 @@ void sendPreset(const Preset & preset) {
     sendSound(preset.left, left_channel); 
   if (preset.right.bank != invalid)
     sendSound(preset.right, right_channel); 
+}
+
+/**
+ * Display name of editable parameter set. 
+ * Names of keyboard sets depend on whether there is a split point in the preset.
+ */
+void displayParameterSet(DisplayArea area, const Preset & preset, const ParameterSet & set) {
+  switch (set) {
+    case CommonSettings: return display(area, "Common Settings");
+    case Foot: return display(area, "Foot Pedal");
+    case Left: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
+    case Right: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
+  }
 }
 
 /**
