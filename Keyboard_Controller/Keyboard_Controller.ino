@@ -67,6 +67,12 @@ void display(DisplayArea area, const char * text, int value) {
   display(area, text, buf);
 }
 
+void display(DisplayArea area, int value, const char * text) {
+  char buf[8];
+  sprintf(buf, "%d", value);
+  display(area, buf, text);
+}
+
 void display(DisplayArea area, const char *  text1, const char * text2) {
   // defaults fitting to line1 area
   int columns = lcd_columns;
@@ -223,6 +229,8 @@ selectSound ---enter---> selectPreset ---exit--> playing (selected preset)
 */
 
 State state = playing;
+Sound * editedSound = &currentPreset.right;
+byte * param_value ;
 
 /**
  * The state event machine for the user interface.
@@ -236,7 +244,6 @@ void process(Event event, int value) {
   static ParameterSet parameter_set = CommonSettings;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
-  static Sound & editedSound = currentPreset.right;
 
   switch (state) {
 
@@ -321,31 +328,41 @@ void process(Event event, int value) {
           displayPreset(currentPreset, preset_number);
           return;
         case enterBtn:
+          common_parameter = SplitParam;
+          sound_parameter = BankParam;
           switch (parameter_set) {
             case CommonSettings:
               state = editPresetCommon;
+              setParamValuePointer(common_parameter);
+              displayCommonParameter(common_parameter, *param_value);
               break;
             case Foot:
               state = editPresetSound;
-              editedSound = currentPreset.foot;
+              editedSound = &currentPreset.foot;
+              setParamValuePointer(sound_parameter);
+              displaySoundParameter(sound_parameter, *param_value);
               break;
             case Left:
               state = editPresetSound;
-              editedSound = currentPreset.split_point == invalid ? currentPreset.right : currentPreset.left;
+              editedSound = currentPreset.split_point == invalid ? &currentPreset.right : &currentPreset.left;
+              setParamValuePointer(sound_parameter);
+              displaySoundParameter(sound_parameter, *param_value);
               break;
             case Right:
               state = editPresetSound;
-              editedSound = currentPreset.right;
+              editedSound = &currentPreset.right;
+              setParamValuePointer(sound_parameter);
+              displaySoundParameter(sound_parameter, *param_value);
               break;
           }
           displayParameterSet(line1, currentPreset, parameter_set);
           return;
         case modWheel:
-          value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1);
-          if (value != parameter_set) {
-            parameter_set = (ParameterSet)value;
-            displayParameterSet(line2, currentPreset, parameter_set);
-          }
+           value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1);
+           if (value != parameter_set) {
+             parameter_set = (ParameterSet)value;
+             displayParameterSet(line2, currentPreset, parameter_set);
+           }
           return;
       }
       return; 
@@ -356,8 +373,6 @@ void process(Event event, int value) {
           state = editPreset;
           display(line1, "Edit Preset");
           displayParameterSet(line2, currentPreset, parameter_set);
-          return;
-        case enterBtn:
           return;
         case modWheel:
           return;
@@ -454,6 +469,154 @@ void displayParameterSet(DisplayArea area, const Preset & preset, const Paramete
     case Foot: return display(area, "Foot Pedal");
     case Left: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
     case Right: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
+  }
+}
+
+const char * NONE = "(none)";
+const char * DFLT = "(default)";
+
+void displayCommonParameter(CommonParameter p, byte value) {
+  switch (p) {
+    case SplitParam: 
+      display(line2left, "Split pos:");
+      break;
+  }
+  if (value == invalid)
+    display(line2right, NONE);
+  else 
+    display(line2right, value);
+}
+
+const char * toString(WheelAssignableController c) {
+  switch (c) {
+    case NoWheel: return NONE;
+    case Modulation: return "modulation";
+    case WhaWhaAmount: return "wha-wha";
+    case CutoffFrequency: return "cutoff f.";
+    case Resonance: return "resonance"; 
+  }
+}
+
+const char * toString(SwitchAssignableController c) {
+  switch (c) {
+    case NoSwitch: return NONE;
+    case Sustain: return "sustain";
+    case Sostenuto: return "sostenuto";
+    case Soft: return "soft";
+    case WhaWha: return "wha-wha";
+    case Rotor: return "rotor spd.";
+  }
+}
+
+void displaySoundParameter(SoundParameter p, byte value) {
+  switch (p) {
+    case BankParam: 
+      return display(line2, "Sound bank:",toString((SD2Bank)value));
+    case ProgNoParam: 
+      return display(line2, "Program change:", value);
+    case TransposeParam:
+      return display(line2, "Transpose:", value);
+    case VolumeParam:
+      if (value == invalid) {
+        display(line2left, "Volume:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "Volume:", value);
+    case PanParam:
+      if (value == invalid) {
+        display(line2left, "Pan:");
+        return display(line2right, DFLT);
+      }
+      display(line2left, "Pan:");
+      if (value == MIDI_CONTROLLER_MEAN)
+        return display(line2right, "center");
+      if (value > MIDI_CONTROLLER_MEAN)
+        return display(line2right, ">>>", value - MIDI_CONTROLLER_MEAN);
+      return display(line2right, MIDI_CONTROLLER_MEAN - value, "<<<");
+    case ReverbParam:
+      if (value == invalid) {
+        display(line2left, "Rev. send:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "Reverb send:", value);
+    case EffectsParam:    
+      if (value == invalid) {
+        display(line2left, "FX send:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "FX send:", value);
+    case CutoffParam:
+      if (value == invalid) {
+        display(line2left, "Cutoff f.:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "Cutoff frequ.:", value);
+    case ResonanceParam:    
+      if (value == invalid) {
+        display(line2left, "Resonance:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "Resonance:", value);
+    case ModAssign:
+      return display(line2, "Mod.wheel>", toString((WheelAssignableController)value));
+    case PitchAssign:
+      return display(line2, "Ptch.whl.>", toString((WheelAssignableController)value));
+    case Switch1Assign:
+      return display(line2, "Switch 1>", toString((SwitchAssignableController)value));
+    case Switch2Assign:
+      return display(line2, "Switch 2>", toString((SwitchAssignableController)value));
+  }
+}
+
+void setParamValuePointer(CommonParameter p) {
+  switch (p) {
+    case SplitParam: 
+      param_value = &currentPreset.split_point;
+      break;
+  }
+}
+
+void setParamValuePointer(SoundParameter p) {
+  switch (p) {
+    case BankParam:
+      param_value = &(editedSound->bank);
+      break;
+    case ProgNoParam:
+      param_value = &(editedSound->program_number);
+      break;
+    case TransposeParam:
+      param_value = &(editedSound->transpose);
+      break;
+    case VolumeParam:
+      param_value = &(editedSound->volume);
+      break;
+    case PanParam:
+      param_value = &(editedSound->pan);
+      break;
+    case ReverbParam:
+      param_value = &(editedSound->reverb_send);
+      break;
+    case EffectsParam:
+      param_value = &(editedSound->effects_send);
+      break;
+    case CutoffParam:
+      param_value = &(editedSound->cutoff_frequency);
+      break;
+    case ResonanceParam:
+      param_value = &(editedSound->resonance);
+      break;
+    case ModAssign:
+      param_value = &(editedSound->mod_wheel_ctrl_no);
+      break;
+    case PitchAssign:
+      param_value = &(editedSound->pitch_wheel_ctrl_no);
+      break;
+    case Switch1Assign:
+      param_value = &(editedSound->ext_switch_1_ctrl_no);
+      break;
+    case Switch2Assign:
+      param_value = &(editedSound->ext_switch_2_ctrl_no);
+      break;
   }
 }
 

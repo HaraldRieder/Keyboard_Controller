@@ -1,6 +1,6 @@
 // max. value of a MIDI controller
 const int MIDI_CONTROLLER_MAX = 127;
-const int MIDI_MEAN_PAN = 0x40;
+const int MIDI_CONTROLLER_MEAN = 64;
 
 /*--------------------------------- LCD display ---------------------------------*/
 
@@ -12,6 +12,7 @@ void display(DisplayArea area, const char *  text);
 void display(DisplayArea area, int value);
 void display(DisplayArea area, const char *  text1, const char * text2);
 void display(DisplayArea area, const char *  text, int value);
+void display(DisplayArea area, int value, const char *  text);
 
 /*--------------------------------- persistent settings ---------------------------------*/
 
@@ -35,7 +36,7 @@ struct MainSettings {
 };
 
 /*--------- sound presets ---------*/
-enum SwitchAssignableControllers {
+enum SwitchAssignableController {
   NoSwitch = invalid,
   Sustain = midi::Sustain, // values 00 or 0f
   Sostenuto = midi::Sostenuto, // values 00 or 0f
@@ -44,7 +45,7 @@ enum SwitchAssignableControllers {
   Rotor = 0x1e, // values 00 0ff, 40 slow, 7f fast
 };
 
-enum WheelAssignableControllers {
+enum WheelAssignableController {
   NoWheel = invalid,
   Modulation = midi::ModulationWheel,
   WhaWhaAmount = 0x55,
@@ -71,8 +72,8 @@ public:
   byte pitch_wheel_ctrl_no;
   byte ext_switch_1_ctrl_no;
   byte ext_switch_2_ctrl_no;
-  byte reserved6;
-  byte reserved7;
+  byte cutoff_frequency;
+  byte resonance;
   byte reserved8;
   byte reserved9;
 };
@@ -122,37 +123,34 @@ void savePreset(int presetNumber, const Preset & preset) {
   }
 }
 
+void defaultSound(Sound & sound) {
+  sound.bank = BankA;
+  sound.program_number = 0; // Grand Piano
+  sound.transpose = 0;
+  sound.volume = invalid;
+  sound.pan = invalid;
+  sound.reverb_send = invalid; // do not change reverb send level
+  sound.effects_send = invalid; // do not change effects send level
+  sound.mod_wheel_ctrl_no = invalid; // do not send anything
+  sound.pitch_wheel_ctrl_no = invalid; // do not send anything
+  sound.ext_switch_1_ctrl_no = invalid; // do not send anything
+  sound.ext_switch_2_ctrl_no = invalid; // do not send anything
+  sound.cutoff_frequency = invalid;
+  sound.resonance = invalid;
+}
+
 void defaultPreset(Preset & preset) {
   preset.split_point = invalid; // no split left|right
-  preset.foot.bank = BankA;
+
+  defaultSound(preset.foot);
   preset.foot.program_number = 32; // Jazz Bass
-  preset.foot.transpose = 0;
-  preset.foot.volume = MIDI_CONTROLLER_MAX;
-  preset.foot.pan = MIDI_MEAN_PAN;
-  preset.foot.reverb_send = invalid; // do not change reverb send level
-  preset.foot.effects_send = invalid; // do not change effects send level
-  preset.foot.mod_wheel_ctrl_no = invalid; // do not send anything
-  preset.foot.pitch_wheel_ctrl_no = invalid; // do not send anything
-  preset.foot.ext_switch_1_ctrl_no = invalid; // do not send anything
-  preset.foot.ext_switch_2_ctrl_no = invalid; // do not send anything
-  preset.left.bank = BankA;
+
+  defaultSound(preset.left);
   preset.left.program_number = 26; // Jazz Guitar
-  preset.left.transpose = 1; // 12 notes higher
-  preset.left.volume = MIDI_CONTROLLER_MAX;
-  preset.left.pan = MIDI_MEAN_PAN;
-  preset.left.reverb_send = invalid; // do not change reverb send level
-  preset.left.effects_send = invalid; // do not change effects send level
-  preset.left.mod_wheel_ctrl_no = invalid; // do not send anything
-  preset.left.pitch_wheel_ctrl_no = invalid; // do not send anything
+  preset.left.transpose = 12; // 12 notes higher
   preset.left.ext_switch_1_ctrl_no = midi::Sustain; 
-  preset.left.ext_switch_2_ctrl_no = invalid; // do not send anything
-  preset.right.bank = BankA;
-  preset.right.program_number = 0; // Grand Piano
-  preset.right.transpose = 0; 
-  preset.right.volume = MIDI_CONTROLLER_MAX;
-  preset.right.pan = MIDI_MEAN_PAN;
-  preset.right.reverb_send = invalid; // do not change reverb send level
-  preset.right.effects_send = invalid; // do not change effects send level
+
+  defaultSound(preset.right);
   preset.right.mod_wheel_ctrl_no = midi::ModulationWheel; 
   preset.right.pitch_wheel_ctrl_no = ~invalid; // TODO, switches pitch bend messages on
   preset.right.ext_switch_1_ctrl_no = midi::Sustain; 
@@ -167,13 +165,18 @@ enum ParameterSet {
   CommonSettings, Foot, Left, Right  
 };
 
+const int n_common_parameters = 1;
+
 enum CommonParameter {
   SplitParam
 };
 
+const int n_sound_parameters = 13;
+
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, VolumeParam, PanParam, 
-  ReverbParam, EffectsParam, ModAssign, PitchAssign, Switch1Assign, Switch2Assign
+  ReverbParam, EffectsParam, CutoffParam, ResonanceParam,
+  ModAssign, PitchAssign, Switch1Assign, Switch2Assign
 };
 
 enum State {
