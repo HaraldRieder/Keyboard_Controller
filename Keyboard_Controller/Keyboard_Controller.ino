@@ -29,12 +29,11 @@ int push_btn_exit_val;
 /* pitch bend wheel input pin and last known value */
 const int pitch_wheel_pin = A0;
 int pitch_wheel_val;
+boolean pitch_wheel_up;
 /* modulation wheel input pin and last known value */
 const int mod_wheel_pin = A1;
 int mod_wheel_val;
-/* data entry dial */
-const int data_entry_pin = A2;
-int data_val;
+boolean mod_wheel_up;
 
 /* number of current preset, initially the first preset saved in EEPROM */
 int preset_number = 0;
@@ -164,6 +163,9 @@ void setup() {
   readPreset(preset_number, currentPreset);
 }
 
+/* noise supression by hysteresis */
+const int wheel_hysteresis = 3;
+
 void loop() {
   int inval;
   
@@ -196,22 +198,37 @@ void loop() {
       if (inval != ext_switch_2_val)
         handleExtSwitch2(ext_switch_2_val = inval);
       break;
-    case 8:
     case 18:
       inval = analogRead(pitch_wheel_pin);
-      if (inval != pitch_wheel_val)
-        handlePitchWheel(pitch_wheel_val = inval);
+      if (inval > pitch_wheel_val) {
+        if (pitch_wheel_up || inval > pitch_wheel_val + wheel_hysteresis) {
+          handlePitchWheel(pitch_wheel_val = inval);
+          pitch_wheel_up = true;
+        }
+      } else if (inval < pitch_wheel_val) {
+        if (!pitch_wheel_up || inval < pitch_wheel_val - wheel_hysteresis) {
+          handlePitchWheel(pitch_wheel_val = inval);
+          pitch_wheel_up = false;
+        }
+      }
       break;
     case 10:
       inval = analogRead(mod_wheel_pin);
-      if (inval != mod_wheel_val)
-        handleModWheel(mod_wheel_val = inval);
+      if (inval > mod_wheel_val) {
+        if (mod_wheel_up || inval > mod_wheel_val + wheel_hysteresis) {
+          handleModWheel(mod_wheel_val = inval);
+          mod_wheel_up = true;
+        }
+      } else if (inval < mod_wheel_val) {
+        if (!mod_wheel_up || inval < mod_wheel_val - wheel_hysteresis) {
+          handleModWheel(mod_wheel_val = inval);
+          mod_wheel_up = false;
+        }
+      }
       break;
+    case 8:
     case 12:
-      inval = analogRead(mod_wheel_pin);
-      if (inval != mod_wheel_val)
-        handleModWheel(mod_wheel_val = inval);
-      break;
+      // reserved
     default:
       // call this often
       midi3.read();
@@ -745,10 +762,11 @@ const unsigned int lower_pitch_range = min_normal_pitch - min_pitch;
 const unsigned int max_normal_pitch = 554;
 const unsigned int max_pitch = 694;
 const unsigned int upper_pitch_range = max_pitch - max_normal_pitch;
-// force 1 initial MIDI message by initialization with invalid value
-int pitch = MIDI_PITCHBEND_MAX + 1;
 
 void handlePitchWheel(unsigned int inval) {
+  // force 1 initial MIDI message by initialization with invalid value
+  static int pitch = MIDI_PITCHBEND_MAX + 1;
+
   //display(line1, "pitch", inval);
   unsigned long ulval; // avoids unsigned int overflow
   // TODO Achtung unsigned int overflow!
