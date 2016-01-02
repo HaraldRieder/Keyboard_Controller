@@ -185,7 +185,8 @@ enum State {
   selectPreset,
   editPreset,
   editPresetCommon,
-  editPresetSound
+  editPresetSound,
+  askSavePreset
 };
 
 enum Event {

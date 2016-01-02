@@ -322,10 +322,16 @@ void process(Event event, int value) {
     case editPreset:
       switch (event) {
         case exitBtn:
-          // TODO if changed ask whether it shall be saved
-          state = selectPreset;
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number);
+          if (changed(currentPreset, preset_number)) {
+            state = askSavePreset;
+            display(line1, "Save changed preset?");
+            display(line2, "red=yes black=no");
+          }
+          else {
+            state = selectPreset;
+            sendPreset(currentPreset);
+            displayPreset(currentPreset, preset_number);
+          }
           return;
         case enterBtn:
           common_parameter = SplitParam;
@@ -392,6 +398,21 @@ void process(Event event, int value) {
           return;
       }
       return; 
+      
+    case askSavePreset:
+      switch (event) {
+        case enterBtn:
+          savePreset(preset_number, currentPreset);
+          display(line1, "Preset saved!");
+          display(line2, "");
+          delay(1500);
+          // continue...
+        case exitBtn:
+          state = selectPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number);
+          return;
+      }  
   }
 }
 
@@ -618,6 +639,18 @@ void setParamValuePointer(SoundParameter p) {
       param_value = &(editedSound->ext_switch_2_ctrl_no);
       break;
   }
+}
+
+/**
+ * Returns true if given preset differs from preset in EEPROM addressed by the preset number.
+ * @preset to be compared
+ * @preset_number index of unchanged preset in EEPROM
+ * @return true if different
+ */
+boolean changed(const Preset & preset, int preset_number) {
+  Preset originalPreset;
+  readPreset(preset_number, originalPreset);
+  return (memcmp(&originalPreset, &preset, sizeof(Preset)) != 0);
 }
 
 /**
