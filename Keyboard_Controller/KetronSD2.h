@@ -93,7 +93,7 @@ PROGMEM const char BankBNames[][MAX_NAME_LEN+1] = {
 "Jingle","Electric","House","ELO Piano","Vintage","Funky Piano","FM Piano 1","FM Piano 2",
 "Toy Box","Chimes","Mallets","Long Vibes","Malimba","Mellow","Tinkles","Wind Chimes",
 "Rotary","Jazz Organ 2","Drawbar","Positive","Master","Francaise","Cassotto","Tango",
-"Nylon Gt.","Folk Gt.","Funk Gt.","60' Stopped","Muted Gt.2"," Lead Guitar","12 Strings","Solid"
+"Nylon Gt.","Folk Gt.","Funk Gt.","60' Stopped","Muted Gt.2"," Lead Guitar","12 Strings","Solid",
 "Warm","Ms Finger","Mute Bass","Bluebass","Precision Bs.","Synth.Bass 3","Synth.Bass 4","Synth.Bass 5",
 "Philarmoni","Violas","GlockString","Octa Strings 1","Octa Strings 2","Marcato","Orchestra","Slow Arcos",
 "Strings 2","Dark Strings","Dah Choir","Vocalize","Scat Choir","Ooh Choir","Aah Choir","Chorale",
@@ -101,7 +101,7 @@ PROGMEM const char BankBNames[][MAX_NAME_LEN+1] = {
 "Soprano","Liscio Sax","Jazz Tenor","Graffiato","Mariachi","Grow Brass 2","Blare","Slide Tbn",
 "Clarino","Fife","Lip Flute","Chiff","Analogs","Flanger","Brightpad","Wiring",
 "Wow","Starcase","Square","Sine","Rock Bass","Synth.Bass 6","Synth.Bass 7","Synth.Bass 8",
-"2nd Perc","3th Perc","Click","Tonebar","Pop Organ","Jazz Organ 3","Lower 8' - 4'","Jazzy",
+"2nd Perc","3th Perc","Click","Tonebar","Pop Organ","Jazz Organ 3","Lower 8'-4'","Jazzy Organ",
 "Pop Gt.","Telecast","Strato","Texas Gt.","Tremolo","Unplug","Stops","Wha Guitar",
 "Hawaian Gt.","Mandolin","Django","Classic Fx","Pedalsteel","Rock&Roll","Reed 8'","Blow",
 "Fx","Tecnosynth 1","Tecnosynth 2","Rave 1","Rave 2","Rave 3","Rave 4","Rave 5",
