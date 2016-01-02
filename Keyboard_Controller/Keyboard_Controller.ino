@@ -261,6 +261,7 @@ void process(Event event, int value) {
   static ParameterSet parameter_set = CommonSettings;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
+  static int int_param_value;
 
   switch (state) {
 
@@ -398,6 +399,21 @@ void process(Event event, int value) {
           displayParameterSet(line2, currentPreset, parameter_set);
           return;
         case modWheel:
+           value = value * n_common_parameters / (MIDI_CONTROLLER_MAX+1);
+           if (value != common_parameter) {
+             common_parameter = (CommonParameter)value;
+             setParamValuePointer(common_parameter);
+             displayCommonParameter(common_parameter, *param_value);
+           }
+          return;
+        case pitchWheel:
+          // split point, increment/decrement by 1 or by 10 
+          {
+            if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
+              *param_value = (byte)int_param_value;
+              displayCommonParameter(common_parameter, *param_value);
+            }
+          }
           return;
       }
       return; 
@@ -412,6 +428,27 @@ void process(Event event, int value) {
         case enterBtn:
           return;
         case modWheel:
+           value = value * n_sound_parameters / (MIDI_CONTROLLER_MAX+1);
+           if (value != sound_parameter) {
+             sound_parameter = (SoundParameter)value;
+             setParamValuePointer(sound_parameter);
+             displaySoundParameter(sound_parameter, *param_value);
+           }
+          return;
+        case pitchWheel:
+          // increment/decrement by 1 or by 10 
+          {
+            if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
+              *param_value = (byte)int_param_value;
+              displaySoundParameter(sound_parameter, *param_value);
+              midi::Channel ch = right_channel;
+              if (editedSound == &currentPreset.left)
+                ch = left_channel;
+              else if (editedSound == &currentPreset.foot)
+                ch = foot_channel;
+              sendSoundParameter(sound_parameter, *param_value, ch);
+            }
+          }
           return;
       }
       return; 
@@ -479,10 +516,13 @@ void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channe
  */ 
 void sendSound(const Sound & sound, midi::Channel channel) {
   sendSound((SD2Bank)sound.bank, sound.program_number, channel);
-  midi3.sendControlChange(midi::ChannelVolume, sound.volume, channel);
-  midi3.sendControlChange(midi::Pan, sound.pan, channel);
-  midi3.sendControlChange(0x5b, sound.reverb_send, channel); // SD-2, non-standard
-  midi3.sendControlChange(0x5d, sound.effects_send, channel); // SD-2, non-standard
+  sendSoundParameter(TransposeParam, sound.transpose, channel);
+  sendSoundParameter(VolumeParam, sound.volume, channel);
+  sendSoundParameter(PanParam, sound.pan, channel);
+  sendSoundParameter(ReverbParam, sound.reverb_send, channel);
+  sendSoundParameter(EffectsParam, sound.effects_send, channel);
+  sendSoundParameter(CutoffParam, sound.cutoff_frequency, channel);
+  sendSoundParameter(ResonanceParam, sound.resonance, channel);
 }
 
 /**
@@ -525,9 +565,9 @@ void displayCommonParameter(CommonParameter p, byte value) {
     display(line2right, value);
 }
 
-const char * toString(WheelAssignableController c) {
+const char * toString(WheelAssignableController c, boolean isPitchWheel) {
   switch (c) {
-    case NoWheel: return NONE;
+    case NoWheel: return isPitchWheel ? NONE : "pitch bend";
     case Modulation: return "modulation";
     case WhaWhaAmount: return "wha-wha";
     case CutoffFrequency: return "cutoff f.";
@@ -551,9 +591,9 @@ void displaySoundParameter(SoundParameter p, byte value) {
     case BankParam: 
       return display(line2, "Sound bank:",toString((SD2Bank)value));
     case ProgNoParam: 
-      return display(line2, "Program change:", value);
+      return display(line2, "Program:", toString((SD2Bank)value, value));
     case TransposeParam:
-      return display(line2, "Transpose:", value);
+      return display(line2, "Transpose:", (int)value - MIDI_CONTROLLER_MEAN);
     case VolumeParam:
       if (value == invalid) {
         display(line2left, "Volume:");
@@ -596,13 +636,57 @@ void displaySoundParameter(SoundParameter p, byte value) {
       }
       return display(line2, "Resonance:", value);
     case ModAssign:
-      return display(line2, "Mod.wheel>", toString((WheelAssignableController)value));
+      return display(line2, "Mod.wheel>", toString((WheelAssignableController)value, false));
     case PitchAssign:
-      return display(line2, "Ptch.whl.>", toString((WheelAssignableController)value));
+      return display(line2, "Ptch.whl.>", toString((WheelAssignableController)value, true));
     case Switch1Assign:
       return display(line2, "Switch 1>", toString((SwitchAssignableController)value));
     case Switch2Assign:
       return display(line2, "Switch 2>", toString((SwitchAssignableController)value));
+  }
+}
+
+
+void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
+  switch (p) {
+    case BankParam: return midi3.sendControlChange(midi::BankSelect, (midi::DataByte)value, channel);
+    case ProgNoParam: return midi3.sendProgramChange(value, channel);
+    case TransposeParam:
+      toNPRN(CoarseTuning, channel - 1, value);
+      midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      return;
+    case VolumeParam:
+      if (value != invalid) {
+        midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
+      }
+      return;
+    case PanParam:
+      if (value != invalid) {
+        midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
+      }
+      return;
+    case ReverbParam:
+      if (value != invalid) {
+        midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
+      }
+      return;
+    case EffectsParam:    
+      if (value != invalid) {
+        midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
+      }
+      return;
+    case CutoffParam:
+      if (value != invalid) {
+        toNPRN(TVFCutoff, channel - 1, value);
+        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      }
+      return;
+    case ResonanceParam:    
+      if (value != invalid) {
+        toNPRN(TVFResonance, channel - 1, value);
+        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      }
+      return;
   }
 }
 

@@ -173,5 +173,32 @@ const char * toString(SD2Bank bank, byte program_number) {
   return name_buffer;
 }
 
+enum SD2NPRN {
+  CoarseTuning, TVFCutoff, TVFResonance
+};
+
+byte NRPN_buff[7];
+
+void toNPRN(SD2NPRN nprn, byte channel, byte value) {
+  NRPN_buff[0] = 0xB0 | channel;
+  NRPN_buff[5] = 0x06;
+  NRPN_buff[6] = value;
+  switch (nprn) {
+    case CoarseTuning:
+      NRPN_buff[1] = 0x65;
+      NRPN_buff[2] = 0x00;
+      NRPN_buff[3] = 0x64;
+      NRPN_buff[4] = 0x02;
+      return;
+    case TVFCutoff:
+    case TVFResonance:
+      NRPN_buff[1] = 0x63;
+      NRPN_buff[2] = 0x01;
+      NRPN_buff[3] = 0x62;
+      NRPN_buff[4] = (nprn == TVFCutoff ? 0x20 : 0x21);
+      return;
+  }
+}
+
 
 

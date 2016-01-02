@@ -126,7 +126,7 @@ void savePreset(int presetNumber, const Preset & preset) {
 void defaultSound(Sound & sound) {
   sound.bank = BankA;
   sound.program_number = 0; // Grand Piano
-  sound.transpose = 0;
+  sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
   sound.volume = invalid;
   sound.pan = invalid;
   sound.reverb_send = invalid; // do not change reverb send level
@@ -147,7 +147,6 @@ void defaultPreset(Preset & preset) {
 
   defaultSound(preset.left);
   preset.left.program_number = 26; // Jazz Guitar
-  preset.left.transpose = 12; // 12 notes higher
   preset.left.ext_switch_1_ctrl_no = midi::Sustain; 
 
   defaultSound(preset.right);
@@ -197,6 +196,7 @@ void displaySound(SD2Bank bank, int program_number);
 void displayPreset(const Preset & Preset);
 void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel);
 void sendSound(const Sound & sound, midi::Channel channel);
+void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
 //void process(Event event);
 void process(Event event, int value);
 
