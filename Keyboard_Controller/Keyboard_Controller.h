@@ -188,11 +188,12 @@ enum State {
   editPreset,
   editPresetCommon,
   editPresetSound,
-  askSavePreset
+  askSavePreset,
+  waitFor2ndTransposeKey
 };
 
 enum Event {
-  enterBtn, exitBtn, modWheel, pitchWheel, dial
+  enterBtn, exitBtn, modWheel, pitchWheel, noteOn
 };
 
 void displaySound(SD2Bank bank, int program_number);

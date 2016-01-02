@@ -415,6 +415,16 @@ void process(Event event, int value) {
             }
           }
           return;
+        case noteOn:
+          if (common_parameter == SplitParam) {
+            *param_value = (byte)value;
+            displayCommonParameter(common_parameter, *param_value);
+            //delay(1500);
+            //++common_parameter;
+            //setParamValuePointer(common_parameter);
+            //displayCommonParameter(common_parameter, *param_value);
+          }
+          return;
       }
       return; 
       
@@ -452,8 +462,27 @@ void process(Event event, int value) {
             }
           }
           return;
+        case noteOn:
+          if (sound_parameter == TransposeParam) {
+            int_param_value = value; // remember
+            state = waitFor2ndTransposeKey;
+            display(line1, "Please press");
+            display(line2, "second key!");
+          }
+          return;
       }
       return; 
+      
+    case waitFor2ndTransposeKey:
+      switch (event) {
+        case noteOn: 
+          *param_value = (byte)(value - int_param_value + MIDI_CONTROLLER_MEAN);
+        case exitBtn:
+          displayParameterSet(line1, currentPreset, parameter_set);
+          displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+          state = editPresetSound;
+      }
+      return;
       
     case askSavePreset:
       switch (event) {
@@ -945,7 +974,8 @@ void handleModWheel(unsigned int inval) {
 
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
-  // TODO Tastatureingabe Split + Transpose
+  if (state != playing)
+    process(noteOn, note);
 }
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
