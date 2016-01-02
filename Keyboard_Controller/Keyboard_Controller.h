@@ -36,6 +36,7 @@ struct MainSettings {
 };
 
 /*--------- sound presets ---------*/
+const int n_switch_assignable_ctrls = 6;
 enum SwitchAssignableController {
   NoSwitch = invalid,
   Sustain = midi::Sustain, // values 00 or 0f
@@ -45,12 +46,14 @@ enum SwitchAssignableController {
   Rotor = 0x1e, // values 00 0ff, 40 slow, 7f fast
 };
 
+const int n_wheel_assignable_ctrls = 6;
 enum WheelAssignableController {
   NoWheel = invalid,
   Modulation = midi::ModulationWheel,
   WhaWhaAmount = 0x55,
-  CutoffFrequency = 0x120, // TODO NRPN 
-  Resonance = 0x121 // TODO NRPN 
+  CutoffFrequency = 0x60, // NRPN, pseudo controller number!
+  Resonance = 0x61, // NRPN, pseudo controller number! 
+  Pitch = 0xfe // must be the last, only offered for pitch wheel
 };
 
 const int n_presets = 60; // 54 bytes/preset * 60 presets = 3240 bytes EEPROM occupied by presets
@@ -127,16 +130,16 @@ void defaultSound(Sound & sound) {
   sound.bank = BankA;
   sound.program_number = 0; // Grand Piano
   sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
-  sound.volume = invalid;
-  sound.pan = invalid;
-  sound.reverb_send = invalid; // do not change reverb send level
-  sound.effects_send = invalid; // do not change effects send level
-  sound.mod_wheel_ctrl_no = invalid; // do not send anything
-  sound.pitch_wheel_ctrl_no = invalid; // do not send anything
-  sound.ext_switch_1_ctrl_no = invalid; // do not send anything
-  sound.ext_switch_2_ctrl_no = invalid; // do not send anything
-  sound.cutoff_frequency = invalid;
-  sound.resonance = invalid;
+  sound.volume = MIDI_CONTROLLER_MEAN;
+  sound.pan = MIDI_CONTROLLER_MEAN;
+  sound.reverb_send = MIDI_CONTROLLER_MEAN; // do not change reverb send level
+  sound.effects_send = MIDI_CONTROLLER_MEAN; // do not change effects send level
+  sound.mod_wheel_ctrl_no = NoWheel; 
+  sound.pitch_wheel_ctrl_no = NoWheel; 
+  sound.ext_switch_1_ctrl_no = NoSwitch; 
+  sound.ext_switch_2_ctrl_no = NoSwitch; 
+  sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
+  sound.resonance = MIDI_CONTROLLER_MEAN;
 }
 
 void defaultPreset(Preset & preset) {
@@ -147,13 +150,13 @@ void defaultPreset(Preset & preset) {
 
   defaultSound(preset.left);
   preset.left.program_number = 26; // Jazz Guitar
-  preset.left.ext_switch_1_ctrl_no = midi::Sustain; 
+  preset.left.ext_switch_1_ctrl_no = Sustain; 
 
   defaultSound(preset.right);
-  preset.right.mod_wheel_ctrl_no = midi::ModulationWheel; 
-  preset.right.pitch_wheel_ctrl_no = ~invalid; // TODO, switches pitch bend messages on
-  preset.right.ext_switch_1_ctrl_no = midi::Sustain; 
-  preset.right.ext_switch_2_ctrl_no = midi::Sostenuto; 
+  preset.right.mod_wheel_ctrl_no = Modulation; 
+  preset.right.pitch_wheel_ctrl_no = Pitch;
+  preset.right.ext_switch_1_ctrl_no = Sustain; 
+  preset.right.ext_switch_2_ctrl_no = Sostenuto; 
 }
 
 /*--------------------------------- state event machine ---------------------------------*/
@@ -197,7 +200,6 @@ void displayPreset(const Preset & Preset);
 void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel);
 void sendSound(const Sound & sound, midi::Channel channel);
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
-//void process(Event event);
 void process(Event event, int value);
 
 
