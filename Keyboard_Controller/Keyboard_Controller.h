@@ -39,11 +39,11 @@ struct MainSettings {
 const int n_switch_assignable_ctrls = 6;
 enum SwitchAssignableController {
   NoSwitch = invalid,
-  Sustain = midi::Sustain, // values 00 or 0f
-  Sostenuto = midi::Sostenuto, // values 00 or 0f
-  Soft = midi::SoftPedal, // values 00 or 0f
-  WhaWha = 0x54, // values 00 or 0f
-  Rotor = 0x1e, // values 00 0ff, 40 slow, 7f fast
+  Sustain = midi::Sustain, // values 00 or 7f
+  Sostenuto = midi::Sostenuto, // values 00 or 7f
+  Soft = midi::SoftPedal, // values 00 or 7f
+  WhaWha = 0x54, // values 00 or 7f
+  Rotor = 0x1e, // values 00 off or default?, 40 slow, 7f fast
 };
 
 const int n_wheel_assignable_ctrls = 6;
@@ -57,6 +57,7 @@ enum WheelAssignableController {
 };
 
 const int n_presets = 60; // 54 bytes/preset * 60 presets = 3240 bytes EEPROM occupied by presets
+const int n_sounds_per_preset = 3; // foot + left hand + right hand
 
 // start address of preset storage area in EEPROM
 const int PresetsAddress = 40;
@@ -77,8 +78,10 @@ public:
   byte ext_switch_2_ctrl_no;
   byte cutoff_frequency;
   byte resonance;
-  byte reserved8;
-  byte reserved9;
+  byte channel; // not [yet] adjustable but comfortable here
+  byte reserved1;
+  byte reserved2;
+  byte reserved3;
 };
 
 const long magic = 0x20031fe1;
@@ -143,6 +146,7 @@ void defaultSound(Sound & sound) {
 }
 
 void defaultPreset(Preset & preset) {
+  preset.magic = magic; // is a valid data set now
   preset.split_point = invalid; // no split left|right
 
   defaultSound(preset.foot);
@@ -182,7 +186,8 @@ enum SoundParameter {
 };
 
 enum State {
-  playing, // normal state after power on
+  playingSound, 
+  playingPreset,
   selectSound,
   selectPreset,
   editPreset,
@@ -193,7 +198,7 @@ enum State {
 };
 
 enum Event {
-  enterBtn, exitBtn, modWheel, pitchWheel, noteOn
+  enterBtn, exitBtn, modWheel, pitchWheel, noteEvent
 };
 
 void displaySound(SD2Bank bank, int program_number);

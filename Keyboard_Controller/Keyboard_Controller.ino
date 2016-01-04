@@ -38,6 +38,8 @@ boolean mod_wheel_up;
 /* number of current preset, initially the first preset saved in EEPROM */
 int preset_number = 0;
 Preset currentPreset;
+Sound * currentPresetSounds[n_sounds_per_preset] = 
+  { &currentPreset.right, &currentPreset.left, &currentPreset.foot };
 
 midi::Channel sound_channel = 1;
 midi::Channel right_channel = 1, left_channel = 2, foot_channel = 3;
@@ -124,7 +126,14 @@ void display(DisplayArea area, const char *  text1, const char * text2) {
 /*--------------------------------- setup and main loop ---------------------------------*/
 
 int slice_counter = 0;
-const int n_slices = 20;
+const int n_slices = 7;
+
+void readPresetDefaultChannels(int presetNumber, Preset & preset) {
+  readPreset(presetNumber, preset);
+  currentPreset.left.channel = left_channel;
+  currentPreset.right.channel = right_channel;
+  currentPreset.foot.channel = foot_channel;
+}
 
 void setup() {
   // set up the LCD's number of columns and rows: 
@@ -135,11 +144,11 @@ void setup() {
   pinMode(push_btn_enter_pin, INPUT_PULLUP);
   pinMode(push_btn_exit_pin, INPUT_PULLUP);
 
-  //  int channel = 1;
-  midi::Channel channel = MIDI_CHANNEL_OMNI;
+  midi::Channel in_channel = 1; // GT-2 mini channel
   midi3.setHandleNoteOn(handleNoteOn);
   midi3.setHandleNoteOff(handleNoteOff);
-  midi3.begin(channel);
+  midi3.begin(in_channel);
+  midi3.setThruFilterMode(midi::Off);
 //  midi2.begin(channel);
 
   ext_switch_1_val = digitalRead(ext_switch_1_pin);
@@ -160,7 +169,7 @@ void setup() {
   display(line1right, freeMemory());
   display(line2right, "bytes free");
   
-  readPreset(preset_number, currentPreset);
+  readPresetDefaultChannels(preset_number, currentPreset);
 }
 
 /* noise supression by hysteresis */
@@ -169,6 +178,10 @@ const int wheel_hysteresis = 3;
 void loop() {
   int inval;
   
+  // call this often
+  midi3.read();
+  //midi2.read();
+
   switch (slice_counter) {
     case 0:
       inval = digitalRead(push_btn_enter_pin);
@@ -178,7 +191,7 @@ void loop() {
           process(enterBtn, inval);
       }
       break;
-    case 2:
+    case 1:
       inval = digitalRead(push_btn_exit_pin);
       if (inval != push_btn_exit_val) {
         push_btn_exit_val = inval;
@@ -186,19 +199,17 @@ void loop() {
           process(exitBtn, inval);
       }
       break;
-    case 4:
-    case 14:
+    case 2:
       inval = digitalRead(ext_switch_1_pin);
       if (inval != ext_switch_1_val) 
         handleExtSwitch1(ext_switch_1_val = inval);
       break;
-    case 6:
-    case 16:
+    case 3:
       inval = digitalRead(ext_switch_2_pin);
       if (inval != ext_switch_2_val)
         handleExtSwitch2(ext_switch_2_val = inval);
       break;
-    case 18:
+    case 4:
       inval = analogRead(pitch_wheel_pin);
       if (inval > pitch_wheel_val) {
         if (pitch_wheel_up || inval > pitch_wheel_val + wheel_hysteresis) {
@@ -212,7 +223,7 @@ void loop() {
         }
       }
       break;
-    case 10:
+    case 5:
       inval = analogRead(mod_wheel_pin);
       if (inval > mod_wheel_val) {
         if (mod_wheel_up || inval > mod_wheel_val + wheel_hysteresis) {
@@ -226,14 +237,14 @@ void loop() {
         }
       }
       break;
-    case 8:
-    case 12:
+    case 6:
       // reserved
-    default:
-      // call this often
-      midi3.read();
-      //midi2.read();
+      break;
   }
+  // call this often
+  midi3.read();
+  //midi2.read();
+  
   slice_counter++;
   if (slice_counter >= n_slices)
     slice_counter = 0;
@@ -241,11 +252,11 @@ void loop() {
 
 /*--------------------------------- state event machine ---------------------------------*/
 /*
-playing ---enter--> selectSound ---exit--> playing (selected sound)
-selectSound ---enter---> selectPreset ---exit--> playing (selected preset)
+playingSound ---enter--> selectSound ---exit--> playingSound (selected sound)
+selectSound ---enter---> selectPreset ---exit--> playingPreset (selected preset)
 */
 
-State state = playing;
+State state = playingSound;
 Sound * editedSound = &currentPreset.right;
 byte * param_value ;
 
@@ -255,7 +266,6 @@ byte * param_value ;
  * @value optional value, meaning depends on event type
  */
 void process(Event event, int value) {
-  // TODO right of preset might be re-cycled for sound ?
   static enum SD2Bank SD2_current_bank = SD2Presets;
   static int program_number = 0;
   static ParameterSet parameter_set = CommonSettings;
@@ -265,11 +275,13 @@ void process(Event event, int value) {
 
   switch (state) {
 
-    case playing:
+    case playingSound: case playingPreset:
       switch (event) {
         case enterBtn:
           state = selectSound;
           sendSound(SD2_current_bank, program_number, sound_channel);
+          sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
+          sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
           displaySound(SD2_current_bank, program_number);
           return;
       }
@@ -278,7 +290,7 @@ void process(Event event, int value) {
     case selectSound:
       switch (event) {
         case exitBtn:
-          state = playing;
+          state = playingSound;
           display(line1, MY_NAME);
           return;
         case enterBtn:
@@ -309,7 +321,7 @@ void process(Event event, int value) {
     case selectPreset:
       switch (event) {
         case exitBtn:
-          state = playing;
+          state = playingPreset;
           display(line1left, MY_NAME);
           return;
         case enterBtn:
@@ -320,7 +332,7 @@ void process(Event event, int value) {
         case pitchWheel:
           // preset select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
-            readPreset(preset_number, currentPreset);
+            readPresetDefaultChannels(preset_number, currentPreset);
             sendPreset(currentPreset);
             displayPreset(currentPreset, preset_number);
           }
@@ -329,7 +341,7 @@ void process(Event event, int value) {
           value = value * n_presets / (MIDI_CONTROLLER_MAX+1);
           if (value != preset_number) {
             preset_number = value;
-            readPreset(preset_number, currentPreset);
+            readPresetDefaultChannels(preset_number, currentPreset);
             sendPreset(currentPreset);
             displayPreset(currentPreset, preset_number);
           }
@@ -415,7 +427,7 @@ void process(Event event, int value) {
             }
           }
           return;
-        case noteOn:
+        case noteEvent:
           if (common_parameter == SplitParam) {
             *param_value = (byte)value;
             displayCommonParameter(common_parameter, *param_value);
@@ -462,7 +474,7 @@ void process(Event event, int value) {
             }
           }
           return;
-        case noteOn:
+        case noteEvent:
           if (sound_parameter == TransposeParam) {
             int_param_value = value; // remember
             state = waitFor2ndTransposeKey;
@@ -475,7 +487,7 @@ void process(Event event, int value) {
       
     case waitFor2ndTransposeKey:
       switch (event) {
-        case noteOn: 
+        case noteEvent: 
           *param_value = (byte)(value - int_param_value + MIDI_CONTROLLER_MEAN);
         case exitBtn:
           displayParameterSet(line1, currentPreset, parameter_set);
@@ -711,20 +723,29 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
       return;
     case VolumeParam:
-      if (value != MIDI_CONTROLLER_MEAN) { 
+      if (value != MIDI_CONTROLLER_MEAN)
         midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
-      }
       return;
     case PanParam: return midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
-    case ReverbParam: return midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
-    case EffectsParam: return midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
+    case ReverbParam: 
+      if (value != MIDI_CONTROLLER_MEAN)
+        midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
+      return;
+    case EffectsParam: 
+      if (value != MIDI_CONTROLLER_MEAN)
+        midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
+      return;
     case CutoffParam:
-      toNPRN(TVFCutoff, channel - 1, value);
-      midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      if (value != MIDI_CONTROLLER_MEAN) {
+        toNPRN(TVFCutoff, channel - 1, value);
+        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      }
       return;
     case ResonanceParam:    
-      toNPRN(TVFResonance, channel - 1, value);
-      midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      if (value != MIDI_CONTROLLER_MEAN) {
+        toNPRN(TVFResonance, channel - 1, value);
+        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      }
       return;
   }
 }
@@ -809,7 +830,7 @@ void getMinMaxRange(SoundParameter p, int & mini, int & maxi, int & range) {
  */
 boolean changed(const Preset & preset, int preset_number) {
   Preset originalPreset;
-  readPreset(preset_number, originalPreset);
+  readPresetDefaultChannels(preset_number, originalPreset);
   return (memcmp(&originalPreset, &preset, sizeof(Preset)) != 0);
 }
 
@@ -877,10 +898,17 @@ boolean handlePitchWheelEvent(int value, const int min_value, const int max_valu
  * switch (in the foot pedal) is an opener or closer.
  */
 void handleExtSwitch1(int inval) {
-  if (ext_switch_1_opener) 
-    midi3.sendControlChange(midi::Sustain, inval == LOW ? 0 : 127, 1);
-  else 
-    midi3.sendControlChange(midi::Sustain, inval == HIGH ? 0 : 127, 1);
+  boolean off = ext_switch_1_opener ? (inval == LOW) : (inval == HIGH);
+  if (playingSound)
+    midi3.sendControlChange(midi::Sustain, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
+  else for (int i = 0; i < n_sounds_per_preset; i++) {
+    Sound * s = currentPresetSounds[i];
+    if (s->ext_switch_1_ctrl_no != NoSwitch)
+      midi3.sendControlChange(
+        s->ext_switch_1_ctrl_no, 
+        off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
+        s->channel);
+  }
 }
 
 /**
@@ -889,11 +917,17 @@ void handleExtSwitch1(int inval) {
  * switch (in the foot pedal) is an opener or closer.
  */
 void handleExtSwitch2(int inval) {
-  // TODO assignable controller number?
-  if (ext_switch_2_opener) 
-    midi3.sendControlChange(midi::Sostenuto, inval == LOW ? 0 : 127, 1);
-  else 
-    midi3.sendControlChange(midi::Sostenuto, inval == HIGH ? 0 : 127, 1);
+  boolean off = ext_switch_2_opener ? (inval == LOW) : (inval == HIGH);
+  if (playingSound) 
+    midi3.sendControlChange(midi::Sostenuto, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
+  else for (int i = 0; i < n_sounds_per_preset; i++) {
+    Sound * s = currentPresetSounds[i];
+    if (s->ext_switch_2_ctrl_no != NoSwitch)
+      midi3.sendControlChange(
+        s->ext_switch_2_ctrl_no, 
+        off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
+        s->channel);
+  }  
 }
 
 /*--------------------------------- pitch bend wheel ---------------------------------*/
@@ -909,20 +943,28 @@ const unsigned int upper_pitch_range = max_pitch - max_normal_pitch;
 void handlePitchWheel(unsigned int inval) {
   // force 1 initial MIDI message by initialization with invalid value
   static int pitch = MIDI_PITCHBEND_MAX + 1;
+  int ctrlval; // value for low resolution MIDI controllers
 
   //display(line1, "pitch", inval);
   unsigned long ulval; // avoids unsigned int overflow
-  // TODO Achtung unsigned int overflow!
   if (inval >= min_normal_pitch) {
-    if (inval <= max_normal_pitch) 
+    if (inval <= max_normal_pitch) {
       inval = 0;
+      ctrlval = MIDI_CONTROLLER_MEAN;
+    }
     else {
+      ulval = MIDI_CONTROLLER_MAX - MIDI_CONTROLLER_MEAN;
+      ctrlval = (ulval * (inval - max_normal_pitch)) / upper_pitch_range + MIDI_CONTROLLER_MEAN;
       ulval = MIDI_PITCHBEND_MAX;
       inval = (ulval * (inval - max_normal_pitch)) / upper_pitch_range;
-      if (inval > MIDI_PITCHBEND_MAX)
+      if (inval > MIDI_PITCHBEND_MAX) {
         inval = MIDI_PITCHBEND_MAX;
+        ctrlval = MIDI_CONTROLLER_MAX;
+      }
     }
   } else {
+    ulval = MIDI_CONTROLLER_MEAN;
+    ctrlval = (ulval * (inval - min_normal_pitch)) / lower_pitch_range;
     ulval = -MIDI_PITCHBEND_MIN;
     inval = (ulval * (min_normal_pitch - inval)) / lower_pitch_range;
     inval = -inval;
@@ -932,8 +974,26 @@ void handlePitchWheel(unsigned int inval) {
   if (inval != pitch) {
     pitch = inval;
     //display(line1, "pitch ", inval);
-    if (state == playing)
-      midi3.sendPitchBend(pitch, 1);
+    if (state == playingPreset) for (int i = 0; i < n_sounds_per_preset; i++) {
+      Sound * s = currentPresetSounds[i];
+      switch (s->pitch_wheel_ctrl_no) {
+        case NoWheel: 
+          break;
+        case CutoffFrequency:
+          sendSoundParameter(CutoffParam, ctrlval, s->channel);
+          break;
+        case Resonance:
+          sendSoundParameter(ResonanceParam, ctrlval, s->channel);
+          break;
+        case Pitch:
+          midi3.sendPitchBend(pitch, s->channel);
+          break;
+        default: 
+          midi3.sendControlChange(s->mod_wheel_ctrl_no, ctrlval, s->channel);
+      }
+    }      
+    else if (state == playingSound)
+      midi3.sendPitchBend(pitch, sound_channel);
     else 
       process(pitchWheel, pitch);
   }
@@ -963,8 +1023,23 @@ void handleModWheel(unsigned int inval) {
   if (inval != modulation) {
     modulation = inval;
     //display(line2, "mod", inval);
-    if (state == playing)
-      midi3.sendControlChange(midi::ModulationWheel, modulation, 1);
+    if (state == playingPreset) for (int i = 0; i < n_sounds_per_preset; i++) {
+      Sound * s = currentPresetSounds[i];
+      switch (s->mod_wheel_ctrl_no) {
+        case NoWheel: 
+          break;
+        case CutoffFrequency:
+          sendSoundParameter(CutoffParam, modulation, s->channel);
+          break;
+        case Resonance:
+          sendSoundParameter(ResonanceParam, modulation, s->channel);
+          break;
+        default: 
+          midi3.sendControlChange(s->mod_wheel_ctrl_no, modulation, s->channel);
+      }
+    }      
+    else if (state == playingSound)
+      midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
     else 
       process(modWheel, modulation);
   }
@@ -974,11 +1049,32 @@ void handleModWheel(unsigned int inval) {
 
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
-  if (state != playing)
-    process(noteOn, note);
+  switch (state) {
+    case playingSound: 
+    case selectSound:
+      midi3.sendNoteOn(note, velocity, sound_channel);
+      break;
+    default: // Preset
+      if (currentPreset.split_point == invalid)
+        midi3.sendNoteOn(note, velocity, right_channel);
+      else 
+        midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+  }
 }
+
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
+  switch (state) {
+    case playingSound: 
+    case selectSound:
+      midi3.sendNoteOff(note, velocity, sound_channel);
+      break;
+    default: // Preset
+      if (currentPreset.split_point == invalid)
+        midi3.sendNoteOff(note, velocity, right_channel);
+      else 
+        midi3.sendNoteOff(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+      if (state != playingPreset)
+        process(noteEvent, note);
+  }
 }
-
-
