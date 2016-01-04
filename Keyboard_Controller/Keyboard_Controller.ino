@@ -155,21 +155,19 @@ void setup() {
   ext_switch_1_opener = (ext_switch_1_val == LOW);
   ext_switch_2_val = digitalRead(ext_switch_2_pin);
   ext_switch_2_opener = (ext_switch_2_val == LOW);
-  //display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
-  //display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
 
-  const char * switch_modes;
-  if (ext_switch_1_opener) {
-    switch_modes = ext_switch_2_opener ? "1opn 2opn" : "1opn 2cls";
-  } else {
-    switch_modes = ext_switch_2_opener ? "1cls 2opn" : "1cls 2cls";
-  }
-  display(line1left, MY_NAME);
-  display(line2left, switch_modes);
-  display(line1right, freeMemory());
-  display(line2right, "bytes free");
+  display(line1, MY_NAME);
+  char b[30];
+  sprintf(b, "%i bytes free", freeMemory());
+  display(line2, b);
+  delay(2000);
+  display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
+  display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
+  delay(2000);
   
   readPresetDefaultChannels(preset_number, currentPreset);
+  sendPreset(currentPreset);
+  displayPreset(currentPreset, preset_number, false);
 }
 
 /* noise supression by hysteresis */
@@ -252,11 +250,14 @@ void loop() {
 
 /*--------------------------------- state event machine ---------------------------------*/
 /*
+playingPreset --exit--> playingSound --exit--> systemInfo --> playingPreset ...
+playingPreset --enter--> selectPreset ---exit--> playingPreset (selected preset)
 playingSound ---enter--> selectSound ---exit--> playingSound (selected sound)
-selectSound ---enter---> selectPreset ---exit--> playingPreset (selected preset)
+systemInfo --enter--> // TODO edit system settings if needed
+selectPreset --enter--> editPreset --exit--> selectPreset
 */
 
-State state = playingSound;
+State state = playingPreset;
 Sound * editedSound = &currentPreset.right;
 byte * param_value ;
 
@@ -275,14 +276,36 @@ void process(Event event, int value) {
 
   switch (state) {
 
-    case playingSound: case playingPreset:
+    case playingPreset:
       switch (event) {
+        case exitBtn:
+          state = playingSound;
+          sendSound(SD2_current_bank, program_number, sound_channel);
+          sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
+          sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
+          displaySound(SD2_current_bank, program_number, false);
+          return;
+        case enterBtn:
+          state = selectPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, true);
+          return;
+      }
+      return;
+      
+    case playingSound: 
+      switch (event) {
+        case exitBtn:
+          state = playingPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, false);
+          return;
         case enterBtn:
           state = selectSound;
           sendSound(SD2_current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
-          displaySound(SD2_current_bank, program_number);
+          displaySound(SD2_current_bank, program_number, true);
           return;
       }
       return;
@@ -291,18 +314,13 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           state = playingSound;
-          display(line1, MY_NAME);
-          return;
-        case enterBtn:
-          state = selectPreset;
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number);
+          displaySound(SD2_current_bank, program_number, false);
           return;
         case pitchWheel:
           // sound select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
             midi3.sendProgramChange(program_number, sound_channel);
-            displaySound(SD2_current_bank, program_number);
+            displaySound(SD2_current_bank, program_number, true);
           }
           return;
         case modWheel:
@@ -312,7 +330,7 @@ void process(Event event, int value) {
           if (bank != SD2_current_bank) {
             SD2_current_bank = bank;
             sendSound(SD2_current_bank, program_number, sound_channel);
-            displaySound(SD2_current_bank, program_number);
+            displaySound(SD2_current_bank, program_number, true);
           }
           return;
       }
@@ -322,10 +340,12 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           state = playingPreset;
-          display(line1left, MY_NAME);
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, false);
           return;
         case enterBtn:
           state = editPreset;
+          lcd.noBlink();
           display(line1, "Edit Preset");
           displayParameterSet(line2, currentPreset, parameter_set);
           return;
@@ -334,7 +354,7 @@ void process(Event event, int value) {
           if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
             readPresetDefaultChannels(preset_number, currentPreset);
             sendPreset(currentPreset);
-            displayPreset(currentPreset, preset_number);
+            displayPreset(currentPreset, preset_number, true);
           }
           return;
         case modWheel:
@@ -343,7 +363,7 @@ void process(Event event, int value) {
             preset_number = value;
             readPresetDefaultChannels(preset_number, currentPreset);
             sendPreset(currentPreset);
-            displayPreset(currentPreset, preset_number);
+            displayPreset(currentPreset, preset_number, true);
           }
           return;
       }
@@ -360,7 +380,7 @@ void process(Event event, int value) {
           else {
             state = selectPreset;
             sendPreset(currentPreset);
-            displayPreset(currentPreset, preset_number);
+            displayPreset(currentPreset, preset_number, true);
           }
           return;
         case enterBtn:
@@ -507,7 +527,7 @@ void process(Event event, int value) {
         case exitBtn:
           state = selectPreset;
           sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number);
+          displayPreset(currentPreset, preset_number, true);
           return;
       }  
   }
@@ -517,19 +537,25 @@ void process(Event event, int value) {
  * Displays "Sound" in line 1 of the LCD.
  * Displays bank name, program number (starting with 1) and program name in line 2.
  */ 
-void displaySound(SD2Bank bank, int number) {
+void displaySound(SD2Bank bank, int number, boolean blink) {
   display(line1, "Sound");
   // display bank name and program number starting with 1
   display(line2left, toString(bank), number+1);
   // display program name
   display(line2right, toString(bank, number));
+  if (blink) {
+    lcd.setCursor(lcd_columns/2 - 1,0);
+    lcd.blink();
+  }
+  else 
+    lcd.noBlink();
 }
 
 /**
  * Displays "Pres." and preset number (starting with 1) in line 1 on the left of the LCD.
  * Displays program names of right, left, foot in the 3 other areas of the LCD.
  */ 
-void displayPreset(const Preset & preset, int number) {
+void displayPreset(const Preset & preset, int number, boolean blink) {
   display(line1, "Preset", number+1);
   if (preset.foot.bank != invalid) 
     display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
@@ -543,6 +569,12 @@ void displayPreset(const Preset & preset, int number) {
     display(line2, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
   else 
     display(line2, "Invalid Preset!");
+  if (blink) {
+    lcd.setCursor(lcd_columns/2 - 1,0);
+    lcd.blink();
+  }
+  else 
+    lcd.noBlink();
 }
 
 /**
