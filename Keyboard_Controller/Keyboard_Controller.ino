@@ -527,10 +527,28 @@ void process(Event event, int value) {
         case exitBtn:
           state = selectPreset;
           sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number, true);
+          displayPreset(currentPreset, -1/*not in EEPROM*/, true);
+          return;
+        case pitchWheel:
+          // preset select, increment/decrement by 1 or by 10 
+          if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
+            displayDestinationPreset(preset_number);
+          }
+          return;
+        case modWheel:
+          value = value * n_presets / (MIDI_CONTROLLER_MAX+1);
+          if (value != preset_number) {
+            preset_number = value;
+            displayDestinationPreset(preset_number);
+          }
           return;
       }  
   }
+}
+
+void displayDestinationPreset(int preset_number) {
+  display(line2left, "Save to >>");
+  display(line2right, preset_number+1);
 }
 
 /**
