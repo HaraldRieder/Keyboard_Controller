@@ -168,6 +168,14 @@ void setup() {
   readPresetDefaultChannels(preset_number, currentPreset);
   sendPreset(currentPreset);
   displayPreset(currentPreset, preset_number, false);
+  
+  // disable timers / avoid MIDI jitter
+  //TIMSK0 = 0; leave timer 0 enabled so that we still have delay() and millis() but not tone()
+  TIMSK1 = 0;
+  TIMSK2 = 0;
+  TIMSK3 = 0;
+  TIMSK4 = 0;
+  TIMSK5 = 0;
 }
 
 /* noise supression by hysteresis */
@@ -523,7 +531,10 @@ void process(Event event, int value) {
           display(line1, "Preset saved!");
           display(line2, "");
           delay(1500);
-          // continue...
+          state = selectPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, true);
+          return;
         case exitBtn:
           state = selectPreset;
           sendPreset(currentPreset);
