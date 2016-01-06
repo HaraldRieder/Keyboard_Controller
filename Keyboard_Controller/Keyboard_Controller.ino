@@ -12,6 +12,9 @@ LiquidCrystal lcd(27,26,25,24,23,22);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
 
+/* data input indicator (MIDI, foot pedal) */
+const int led_pin = 13;
+
 /* external switch 1 (damper pedal) pin, last known value and switch type opener/closer */
 const int ext_switch_1_pin = 53;
 int ext_switch_1_val;
@@ -139,6 +142,7 @@ void setup() {
   // set up the LCD's number of columns and rows: 
   lcd.begin(lcd_columns, lcd_rows);
 
+  pinMode(led_pin, OUTPUT);
   pinMode(ext_switch_1_pin, INPUT_PULLUP);
   pinMode(ext_switch_2_pin, INPUT_PULLUP);
   pinMode(push_btn_enter_pin, INPUT_PULLUP);
@@ -1110,6 +1114,7 @@ void handleModWheel(unsigned int inval) {
 
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
+  digitalWrite(led_pin, LOW);
   switch (state) {
     case playingSound: 
     case selectSound:
@@ -1120,11 +1125,16 @@ void handleNoteOn(byte channel, byte note, byte velocity)
         midi3.sendNoteOn(note, velocity, right_channel);
       else 
         midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+      // handle note on with velocity 0 like note off
+      if (velocity == 0 && state != playingPreset)
+        process(noteEvent, note);
   }
+  digitalWrite(led_pin, HIGH);
 }
 
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
+  digitalWrite(led_pin, LOW);
   switch (state) {
     case playingSound: 
     case selectSound:
@@ -1138,4 +1148,5 @@ void handleNoteOff(byte channel, byte note, byte velocity)
       if (state != playingPreset)
         process(noteEvent, note);
   }
+  digitalWrite(led_pin, HIGH);
 }
