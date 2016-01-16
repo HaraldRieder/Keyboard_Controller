@@ -1160,6 +1160,7 @@ const midi::DataByte E_flat = 15;
 const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
+  digitalWrite(led_pin, LOW);
   if (state != playingSound && currentPreset.foot.program_number != invalid) {
     midi::DataByte note = (midi::DataByte)(currentPreset.foot.transpose + pedal + E_flat);
     if (on) 
@@ -1168,4 +1169,5 @@ void handlePedal(int pedal, boolean on) {
       midi3.sendNoteOff(note, PedalVelocity, foot_channel);
   }
   // TODO switch mode
+  digitalWrite(led_pin, HIGH);
 }
