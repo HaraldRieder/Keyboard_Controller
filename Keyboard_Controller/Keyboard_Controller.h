@@ -14,31 +14,6 @@ void display(DisplayArea area, const char *  text1, const char * text2);
 void display(DisplayArea area, const char *  text, int value);
 void display(DisplayArea area, int value, const char *  text);
 
-/*--------------------------------- foot pedal / diode matrix ---------------------------------*/
-
-const int n_cathode_rows = 2; // 3rd (R14,A14) is not connected to anything at the moment
-
-class CathodeRow {
-public:
-  int ncc_pin; // input normally closed contacts = R12, R13, R14
-  int noc_pin; // input normally open contacts = A12, A13, A14
-  int enable_pin; // output that enables reading ncc and noc values
-  CathodeRow(int ncc_pin, int noc_pin, int enable_pin) {
-    this->ncc_pin = ncc_pin;
-    this->noc_pin = noc_pin;
-    this->enable_pin = enable_pin;
-  }
-};
-
-CathodeRow cathode_rows[n_cathode_rows] = { 
-  CathodeRow(28,30,40),
-  CathodeRow(32,34,42),
-//  CathodeRow(36,38,44)
-};
-
-const int n_anode_columns = 8; // G1..G8 each connected to several anodes
-const int anode_column_pins[n_anode_columns] = {29,31,33,35,37,39,41,43};
-
 /*--------------------------------- persistent settings ---------------------------------*/
 
 // the values in a fresh EEPROM
@@ -175,7 +150,7 @@ void defaultPreset(Preset & preset) {
   preset.split_point = invalid; // no split left|right
 
   defaultSound(preset.foot);
-  preset.foot.program_number = 32; // Jazz Bass
+  preset.foot.program_number = invalid; // switches mode
 
   defaultSound(preset.left);
   preset.left.program_number = 26; // Jazz Guitar

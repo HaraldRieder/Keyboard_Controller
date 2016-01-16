@@ -3,6 +3,7 @@
 #include <MIDI.h>
 #include <MemoryFree.h>
 #include "KetronSD2.h"
+#include "Pedal.h"
 #include "Keyboard_Controller.h"
 
 const char * MY_NAME = "DEMIAN";
@@ -147,6 +148,8 @@ void setup() {
   pinMode(ext_switch_2_pin, INPUT_PULLUP);
   pinMode(push_btn_enter_pin, INPUT_PULLUP);
   pinMode(push_btn_exit_pin, INPUT_PULLUP);
+  
+  setupPedalPins();
 
   midi::Channel in_channel = 1; // GT-2 mini channel
   midi3.setHandleNoteOn(handleNoteOn);
@@ -251,6 +254,7 @@ void loop() {
       // reserved
       break;
   }
+  scanPedal();
   // call this often
   midi3.read();
   //midi2.read();
@@ -1149,4 +1153,19 @@ void handleNoteOff(byte channel, byte note, byte velocity)
         process(noteEvent, note);
   }
   digitalWrite(led_pin, HIGH);
+}
+
+/* lowest pedal note (without transpose) */
+const midi::DataByte E_flat = 15;
+const midi::DataByte PedalVelocity = 80;
+
+void handlePedal(int pedal, boolean on) {
+  if (state != playingSound && currentPreset.foot.program_number != invalid) {
+    midi::DataByte note = (midi::DataByte)(currentPreset.foot.transpose + pedal + E_flat);
+    if (on) 
+      midi3.sendNoteOn(note, PedalVelocity, foot_channel);
+    else 
+      midi3.sendNoteOff(note, PedalVelocity, foot_channel);
+  }
+  // TODO switch mode
 }

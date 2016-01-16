@@ -26,11 +26,10 @@ const char * toString(SD2Bank bank) {
 
 SD2Bank toSD2Bank(int index) {
   switch (index) {
-    case 0: return BankA;
-    case 1: return BankB;
-    case 2: return BankC;
-    case 3: return Drums;
-    case 4: return SD2Presets;
+    case 1: return BankA;
+    case 2: return BankB;
+    case 3: return BankC;
+    case 4: return Drums;
   }
   return SD2Presets;
 }
