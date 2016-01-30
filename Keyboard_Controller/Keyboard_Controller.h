@@ -1,6 +1,6 @@
 // max. value of a MIDI controller
-const int MIDI_CONTROLLER_MAX = 127;
-const int MIDI_CONTROLLER_MEAN = 64;
+const byte MIDI_CONTROLLER_MAX = 127;
+const byte MIDI_CONTROLLER_MEAN = 64;
 
 /*--------------------------------- LCD display ---------------------------------*/
 

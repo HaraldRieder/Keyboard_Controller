@@ -34,6 +34,16 @@ SD2Bank toSD2Bank(int index) {
   return SD2Presets;
 }
 
+int toIndex(SD2Bank bank) {
+  switch (bank) {
+    case BankA: return 1;
+    case BankB: return 2;
+    case BankC: return 3;
+    case Drums: return 4;
+  }
+  return 0;
+}
+
 const int MAX_NAME_LEN = 14;
 
 PROGMEM const char PresetNames[][MAX_NAME_LEN+1] = {

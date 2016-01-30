@@ -277,14 +277,16 @@ State state = playingPreset;
 Sound * editedSound = &currentPreset.right;
 byte * param_value ;
 
+/* in sound mode */
+int program_number = 0;
+enum SD2Bank SD2_current_bank = SD2Presets;
+
 /**
  * The state event machine for the user interface.
  * @param event user action
  * @value optional value, meaning depends on event type
  */
 void process(Event event, int value) {
-  static enum SD2Bank SD2_current_bank = SD2Presets;
-  static int program_number = 0;
   static ParameterSet parameter_set = CommonSettings;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
@@ -968,15 +970,20 @@ boolean handlePitchWheelEvent(int value, const int min_value, const int max_valu
  */
 void handleExtSwitch1(int inval) {
   boolean off = ext_switch_1_opener ? (inval == LOW) : (inval == HIGH);
-  if (playingSound)
-    midi3.sendControlChange(midi::Sustain, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
-  else for (int i = 0; i < n_sounds_per_preset; i++) {
-    Sound * s = currentPresetSounds[i];
-    if (s->ext_switch_1_ctrl_no != NoSwitch)
-      midi3.sendControlChange(
-        s->ext_switch_1_ctrl_no, 
-        off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
-        s->channel);
+  switch (state) {
+    case playingSound:
+    case selectSound:
+      midi3.sendControlChange(midi::Sustain, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
+      break;
+    default:
+      for (int i = 0; i < n_sounds_per_preset; i++) {
+        Sound * s = currentPresetSounds[i];
+        if (s->ext_switch_1_ctrl_no != NoSwitch)
+          midi3.sendControlChange(
+            s->ext_switch_1_ctrl_no, 
+            off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
+            s->channel);
+      }
   }
 }
 
@@ -987,16 +994,21 @@ void handleExtSwitch1(int inval) {
  */
 void handleExtSwitch2(int inval) {
   boolean off = ext_switch_2_opener ? (inval == LOW) : (inval == HIGH);
-  if (playingSound) 
-    midi3.sendControlChange(midi::Sostenuto, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
-  else for (int i = 0; i < n_sounds_per_preset; i++) {
-    Sound * s = currentPresetSounds[i];
-    if (s->ext_switch_2_ctrl_no != NoSwitch)
-      midi3.sendControlChange(
-        s->ext_switch_2_ctrl_no, 
-        off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
-        s->channel);
-  }  
+  switch (state) {
+    case playingSound:
+    case selectSound:
+      midi3.sendControlChange(midi::Sostenuto, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
+      break;
+    default:
+      for (int i = 0; i < n_sounds_per_preset; i++) {
+        Sound * s = currentPresetSounds[i];
+        if (s->ext_switch_2_ctrl_no != NoSwitch)
+          midi3.sendControlChange(
+            s->ext_switch_2_ctrl_no, 
+            off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
+            s->channel);
+      }  
+  }
 }
 
 /*--------------------------------- pitch bend wheel ---------------------------------*/
@@ -1043,28 +1055,34 @@ void handlePitchWheel(unsigned int inval) {
   if (inval != pitch) {
     pitch = inval;
     //display(line1, "pitch ", inval);
-    if (state == playingPreset) for (int i = 0; i < n_sounds_per_preset; i++) {
-      Sound * s = currentPresetSounds[i];
-      switch (s->pitch_wheel_ctrl_no) {
-        case NoWheel: 
-          break;
-        case CutoffFrequency:
-          sendSoundParameter(CutoffParam, ctrlval, s->channel);
-          break;
-        case Resonance:
-          sendSoundParameter(ResonanceParam, ctrlval, s->channel);
-          break;
-        case Pitch:
-          midi3.sendPitchBend(pitch, s->channel);
-          break;
-        default: 
-          midi3.sendControlChange(s->mod_wheel_ctrl_no, ctrlval, s->channel);
-      }
-    }      
-    else if (state == playingSound)
-      midi3.sendPitchBend(pitch, sound_channel);
-    else 
-      process(pitchWheel, pitch);
+    switch (state) {
+      case playingSound:
+      case selectSound:
+        midi3.sendPitchBend(pitch, sound_channel);
+        break;
+      case playingPreset:
+        for (int i = 0; i < n_sounds_per_preset; i++) {
+          Sound * s = currentPresetSounds[i];
+          switch (s->pitch_wheel_ctrl_no) {
+            case NoWheel: 
+              break;
+            case CutoffFrequency:
+              sendSoundParameter(CutoffParam, ctrlval, s->channel);
+              break;
+            case Resonance:
+              sendSoundParameter(ResonanceParam, ctrlval, s->channel);
+              break;
+            case Pitch:
+              midi3.sendPitchBend(pitch, s->channel);
+              break;
+            default: 
+              midi3.sendControlChange(s->mod_wheel_ctrl_no, ctrlval, s->channel);
+          }
+        }
+        break;      
+      default:
+        process(pitchWheel, pitch);
+    }
   }
 }
 
@@ -1092,25 +1110,31 @@ void handleModWheel(unsigned int inval) {
   if (inval != modulation) {
     modulation = inval;
     //display(line2, "mod", inval);
-    if (state == playingPreset) for (int i = 0; i < n_sounds_per_preset; i++) {
-      Sound * s = currentPresetSounds[i];
-      switch (s->mod_wheel_ctrl_no) {
-        case NoWheel: 
-          break;
-        case CutoffFrequency:
-          sendSoundParameter(CutoffParam, modulation, s->channel);
-          break;
-        case Resonance:
-          sendSoundParameter(ResonanceParam, modulation, s->channel);
-          break;
-        default: 
-          midi3.sendControlChange(s->mod_wheel_ctrl_no, modulation, s->channel);
-      }
-    }      
-    else if (state == playingSound)
-      midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
-    else 
+    switch (state) {
+      case playingSound:
+      case selectSound:
+        midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
+        break;
+      case playingPreset:
+        for (int i = 0; i < n_sounds_per_preset; i++) {
+          Sound * s = currentPresetSounds[i];
+          switch (s->mod_wheel_ctrl_no) {
+            case NoWheel: 
+              break;
+            case CutoffFrequency:
+              sendSoundParameter(CutoffParam, modulation, s->channel);
+              break;
+            case Resonance:
+              sendSoundParameter(ResonanceParam, modulation, s->channel);
+              break;
+            default: 
+              midi3.sendControlChange(s->mod_wheel_ctrl_no, modulation, s->channel);
+          }
+        }
+        break;
+      default:      
       process(modWheel, modulation);
+    }
   }
 }
 
@@ -1155,19 +1179,137 @@ void handleNoteOff(byte channel, byte note, byte velocity)
   digitalWrite(led_pin, HIGH);
 }
 
+/*--------------------------------- foot pedal ---------------------------------*/
+
 /* lowest pedal note (without transpose) */
 const midi::DataByte E_flat = 15;
 const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
   digitalWrite(led_pin, LOW);
-  if (state != playingSound && currentPreset.foot.program_number != invalid) {
+  if (state != playingSound && state != selectSound && currentPreset.foot.program_number != invalid) {
     midi::DataByte note = (midi::DataByte)(currentPreset.foot.transpose + pedal + E_flat);
     if (on) 
       midi3.sendNoteOn(note, PedalVelocity, foot_channel);
     else 
       midi3.sendNoteOff(note, PedalVelocity, foot_channel);
   }
-  // TODO switch mode
+  else {
+    int controller = -1;
+    int change_preset_or_sound_by = 0;
+    byte low_value = 0;
+    const char * right_text = "";
+    switch (pedal) {
+    case 0:
+      break;
+    case 1:
+      change_preset_or_sound_by = -10;
+      break;
+    case 2:
+      break;
+    case 3:
+      change_preset_or_sound_by = -1;
+      break;
+    case 4:
+      // rotor fast/slow (not off)
+      controller = Rotor;
+      low_value = 0x40;
+      break;
+    case 5:
+      change_preset_or_sound_by = +1;
+      break;
+    case 6:
+      // wha-wha on/off
+      controller = WhaWha;
+      right_text = "Wha-Wha";
+      break;
+    case 7:
+      change_preset_or_sound_by = +10;
+      break;
+    case 8:
+      // portamento on/off
+      controller = midi::Portamento;
+      right_text = "Portam.";
+      break;
+    case 9:
+      // in sound mode cycle banks
+      if (state == playingSound || state == selectSound) {
+        SD2_current_bank = toSD2Bank(toIndex(SD2_current_bank) + 1);
+        sendSound(SD2_current_bank, program_number, sound_channel);
+        displaySound(SD2_current_bank, program_number, false);
+      }
+      break;
+    case 10:
+      // soft pedal on/off
+      controller = midi::SoftPedal;
+      right_text = "Soft";
+      break;
+    case 11:
+      break;
+    case 12:
+      // sostenuto pedal on/off
+      controller = midi::Sostenuto;
+      right_text = "Sostenuto";
+      break;
+    case 13:
+      // TODO scale tune with key select
+      break;
+    case 14:
+      // sustain pedal on/off
+      controller = midi::Sustain;
+      right_text = "Sustain";
+      break;
+    }
+    if (controller > 0) {
+      switch (state) {
+        case playingSound:
+        case selectSound:
+          midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, sound_channel);
+          break;
+        default:
+          if (currentPreset.split_point == invalid)
+            midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
+          else {
+            // depending on the controller type send to left of right channel or both
+            switch (controller) {
+              case midi::Sustain:
+              case midi::Sostenuto:
+              case midi::SoftPedal:
+              case WhaWha:
+              case Rotor:
+                midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, left_channel);
+            }
+            switch (controller) {
+              case midi::Portamento:
+              case Rotor:
+                midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
+            }
+          }
+      }
+    }
+    else if (change_preset_or_sound_by != 0) {
+      const char * sign = change_preset_or_sound_by > 0 ? "+" : "-";
+      if (on) {
+        // display the increment/decrement value
+        display(line1right, sign, abs(change_preset_or_sound_by));
+        return;
+      } 
+      else {
+        // display the new current sound / preset
+        if (state == playingSound) {
+          program_number = max(0, min(MIDI_CONTROLLER_MAX, program_number + change_preset_or_sound_by));
+          sendSound(SD2_current_bank, program_number, sound_channel);
+          displaySound(SD2_current_bank, program_number, false);
+        }
+        else if (state == playingPreset) {
+          preset_number = max(0, min(MIDI_CONTROLLER_MAX, preset_number + change_preset_or_sound_by));
+          readPresetDefaultChannels(preset_number, currentPreset);
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, true);
+        }
+      }
+    }
+    display(line1right, on ? right_text : "");
+  }
   digitalWrite(led_pin, HIGH);
 }
