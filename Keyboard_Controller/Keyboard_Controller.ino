@@ -1,5 +1,5 @@
-#include <EEPROM.h>
 #include <LiquidCrystal.h>
+#include <EEPROM.h>
 #include <MIDI.h>
 #include <MemoryFree.h>
 #include "KetronSD2.h"
@@ -7,8 +7,6 @@
 #include "Keyboard_Controller.h"
 
 const char * MY_NAME = "DEMIAN";
-
-LiquidCrystal lcd(27,26,25,24,23,22);
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
@@ -47,85 +45,6 @@ Sound * currentPresetSounds[n_sounds_per_preset] =
 
 midi::Channel sound_channel = 1;
 midi::Channel right_channel = 1, left_channel = 2, foot_channel = 3;
-
-/*--------------------------------- LCD display ---------------------------------*/
-
-const int lcd_columns = 20;
-const int lcd_rows = 2;
-
-char buf[lcd_rows * lcd_columns + 1];
-
-/* display text on the given display area */
-void display(DisplayArea area, const char *  text) {
-  display(area, text, "");
-}
-
-void display(DisplayArea area, int value) {
-  char buf[8];
-  sprintf(buf, "%d", value);
-  display(area, buf, "");
-}
-
-void display(DisplayArea area, const char * text, int value) {
-  char buf[8];
-  sprintf(buf, "%d", value);
-  display(area, text, buf);
-}
-
-void display(DisplayArea area, int value, const char * text) {
-  char buf[8];
-  sprintf(buf, "%d", value);
-  display(area, buf, text);
-}
-
-void display(DisplayArea area, const char *  text1, const char * text2) {
-  // defaults fitting to line1 area
-  int columns = lcd_columns;
-  int col = 0;
-  int row = 0;
-  switch(area) {
-    case line2:
-      row = 1;
-      break;
-    case line1left:
-      columns /= 2;
-      break;
-    case line1right:
-      columns /= 2;
-      col = columns;
-      break;
-    case line2left:
-      columns /= 2;
-      row = 1;
-      break;
-    case line2right:
-      columns /= 2;
-      col = columns;
-      row = 1;      
-      break;
-  }
-  // clear area
-  int i;
-  for (i = 0; i < columns; i++) 
-    buf[i] = ' ';
-  buf[i] = '\0';
-  lcd.setCursor(col, row);
-  lcd.print(buf);
-  // print text
-  if (text2 == NULL || *text2 == '\0') 
-    strncpy(buf, text1, columns);
-  else
-    sprintf(buf, "%s %s", text1, text2);
-  int len = min(strlen(buf), columns);
-  if (col == 0) 
-    // left aligned
-    lcd.setCursor(col, row);
-  else
-    // right aligned
-    lcd.setCursor(col + columns - len, row);
-  lcd.print(buf);
-}
-
 
 /*--------------------------------- setup and main loop ---------------------------------*/
 
@@ -171,7 +90,9 @@ void setup() {
   display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
   display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
   delay(2000);
-  
+    
+  readGlobals();
+  sendGlobals();
   readPresetDefaultChannels(preset_number, currentPreset);
   sendPreset(currentPreset);
   displayPreset(currentPreset, preset_number, false);
@@ -194,6 +115,7 @@ void loop() {
   // call this often
   midi3.read();
   //midi2.read();
+  midi3.read();
 
   switch (slice_counter) {
     case 0:
@@ -258,6 +180,7 @@ void loop() {
   // call this often
   midi3.read();
   //midi2.read();
+  midi3.read();
   
   slice_counter++;
   if (slice_counter >= n_slices)
@@ -287,6 +210,7 @@ enum SD2Bank SD2_current_bank = SD2Presets;
  * @value optional value, meaning depends on event type
  */
 void process(Event event, int value) {
+  static GlobalParameter global_parameter = BassBoostParam;
   static ParameterSet parameter_set = CommonSettings;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
@@ -314,9 +238,8 @@ void process(Event event, int value) {
     case playingSound: 
       switch (event) {
         case exitBtn:
-          state = playingPreset;
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number, false);
+          state = editGlobals;
+          display(line1, "Global Settings");
           return;
         case enterBtn:
           state = selectSound;
@@ -324,6 +247,37 @@ void process(Event event, int value) {
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
           displaySound(SD2_current_bank, program_number, true);
+          return;
+      }
+      return;
+      
+    case editGlobals:
+      switch (event) {
+        case exitBtn:
+          saveGlobals();
+          state = playingPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, false);
+          return;
+        case modWheel:
+           value = value * n_global_parameters / (MIDI_CONTROLLER_MAX+1);
+           if (value != global_parameter) {
+             global_parameter = (GlobalParameter)value;
+             setParamValuePointer(global_parameter);
+             displayGlobalParameter(global_parameter, *param_value);
+           }
+          return;
+        case pitchWheel:
+          // increment/decrement by 1 or by 10 
+          {
+            int mini, maxi, range;
+            getMinMaxRange(global_parameter, mini, maxi, range);
+            if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
+              *param_value = map_to_byte(global_parameter, int_param_value);
+              displayGlobalParameter(global_parameter, *param_value);
+              sendGlobals();
+            }
+          }
           return;
       }
       return;
@@ -567,6 +521,25 @@ void process(Event event, int value) {
   }
 }
 
+const char * toString(GlobalParameter p) {
+  switch (p) {
+    case BassBoostParam: return "Bs.Boost";
+    case BoostFreqParam: return "Frequ.";
+  }
+  return "unknown global";
+}
+
+/**
+ * Display 1 global parameter value in edit mode.
+ */ 
+void displayGlobalParameter(GlobalParameter p, byte value) {
+  display(line2left, toString(p));
+  display(line2right, value);
+}
+
+/**
+ * Display the destination preset number when saving a changed preset.
+ */
 void displayDestinationPreset(int preset_number) {
   display(line2left, "Save to >>");
   display(line2right, preset_number+1);
@@ -679,6 +652,10 @@ void displayCommonParameter(CommonParameter p, byte value) {
     display(line2right, value);
 }
 
+byte map_to_byte(GlobalParameter p, int value) {
+  return (byte)value;
+}
+
 byte map_to_byte(SoundParameter p, int value) {
   switch (p) {
     case BankParam:
@@ -784,6 +761,13 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
   }
 }
 
+/**
+ * Sends all global MIDI settings: SD2 bass boost gain+frequency, ...
+ */
+void sendGlobals() {
+  bassBoost_toNPRN_buff(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
+  midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, false);
+}
 
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
   switch (p) {
@@ -818,6 +802,17 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
         midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
       }
       return;
+  }
+}
+
+void setParamValuePointer(GlobalParameter p) {
+  switch (p) {
+    case BassBoostParam:
+      param_value = &globalSettings.SD2_bass_boost;
+      break;
+    case BoostFreqParam:
+      param_value = &globalSettings.SD2_boost_freq;
+      break;
   }
 }
 
@@ -871,6 +866,20 @@ void setParamValuePointer(SoundParameter p) {
       param_value = &(editedSound->ext_switch_2_ctrl_no);
       break;
   }
+}
+
+void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
+  mini = 0;
+  range = 1;
+  switch (p) {
+    case BassBoostParam:
+      range = max_boost_gain + 1;
+      break;
+    case BoostFreqParam:
+      range = max_boost_freq + 1;
+      break;
+  }
+  maxi = mini + range - 1;
 }
 
 void getMinMaxRange(SoundParameter p, int & mini, int & maxi, int & range) {

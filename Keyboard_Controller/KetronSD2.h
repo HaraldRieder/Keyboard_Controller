@@ -1,5 +1,10 @@
 /*--------------------------------- Ketron SD-2 sound module ---------------------------------*/
 
+/* system exclusive */
+const int max_boost_gain = 6;
+const int max_boost_freq = 7;
+
+
 /* Ketron SD-2 voice banks with control change values */
 enum SD2Bank {
   SD2Presets = 2,
@@ -209,5 +214,18 @@ void toNPRN(SD2NPRN nprn, byte channel, byte value) {
   }
 }
 
+const int bassBoost_net_msg_len = 6;
+
+/**
+ * Creates sysex without start and stop bytes.
+ */
+void bassBoost_toNPRN_buff(byte gain, byte frequency) {
+  NRPN_buff[0] = 0x26;
+  NRPN_buff[1] = 0x7b;
+  NRPN_buff[2] = 0x7d;
+  NRPN_buff[3] = 0x00;
+  NRPN_buff[4] = gain;
+  NRPN_buff[5] = frequency;
+}
 
 
