@@ -766,7 +766,7 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
  */
 void sendGlobals() {
   bassBoost_toNPRN_buff(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
-  midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, false);
+  midi3.sendSysEx(bassBoost_net_msg_len, NRPN_buff, false);
 }
 
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
