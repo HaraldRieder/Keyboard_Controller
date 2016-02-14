@@ -4,6 +4,7 @@
 #include <MemoryFree.h>
 #include "KetronSD2.h"
 #include "Pedal.h"
+#include "Display.h"
 #include "Keyboard_Controller.h"
 
 const char * MY_NAME = "DEMIAN";
@@ -411,9 +412,11 @@ void process(Event event, int value) {
            }
           return;
         case pitchWheel:
-          // split point, increment/decrement by 1 or by 10 
+          // split point or pedal mode, increment/decrement by 1 or by 10 
           {
             if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
+              if (common_parameter == PedalModeParam)
+                int_param_value = min(1,max(0,int_param_value));
               *param_value = (byte)int_param_value;
               displayCommonParameter(common_parameter, *param_value);
             }
@@ -644,12 +647,15 @@ void displayCommonParameter(CommonParameter p, byte value) {
   switch (p) {
     case SplitParam: 
       display(line2left, "Split pos:");
+      display(line2right, value);
+      break;
+    case PedalModeParam:
+      display(line2left, "Pdl. mode:");
+      display(line2right, value == 0 ? "bass pedal" : "controller");
       break;
   }
   if (value == invalid)
     display(line2right, NONE);
-  else 
-    display(line2right, value);
 }
 
 byte map_to_byte(GlobalParameter p, int value) {
@@ -1196,7 +1202,7 @@ const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
   digitalWrite(led_pin, LOW);
-  if (state != playingSound && state != selectSound && currentPreset.foot.program_number != invalid) {
+  if (state != playingSound && state != selectSound && currentPreset.pedal_mode == BassPedal) {
     midi::DataByte note = (midi::DataByte)(currentPreset.foot.transpose + pedal + E_flat);
     if (on) 
       midi3.sendNoteOn(note, PedalVelocity, foot_channel);
@@ -1204,6 +1210,7 @@ void handlePedal(int pedal, boolean on) {
       midi3.sendNoteOff(note, PedalVelocity, foot_channel);
   }
   else {
+    // MIDI Controller Pedal
     int controller = -1;
     int change_preset_or_sound_by = 0;
     byte low_value = 0;
