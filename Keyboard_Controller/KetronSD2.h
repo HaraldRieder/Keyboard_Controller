@@ -241,6 +241,9 @@ void setSD2SysexMsg(byte type, byte b1, byte b2) {
  * Creates sysex with start and stop bytes.
  */
 SD2Message bassBoostMsg(byte gain, byte frequency) {
+  // very strange: value 6 seems to be off, next higher value is 1, then in order up to 5
+  // frequency seems to be as expected: lowest value => lowest frequency
+  gain = (gain + 6) % 7;
   setSD2SysexMsg(0x7d, gain, frequency);
   return SD2_msg;
 }

@@ -203,8 +203,6 @@ void defaultPreset(Preset & preset) {
 
 /*--------------------------------- state event machine ---------------------------------*/
 
-const int n_global_parameters = 3;
-
 const int n_parameter_sets = 4;
 
 enum ParameterSet {

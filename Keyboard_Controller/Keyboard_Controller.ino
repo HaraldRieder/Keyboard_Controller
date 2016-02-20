@@ -241,6 +241,8 @@ void process(Event event, int value) {
         case exitBtn:
           state = editGlobals;
           display(line1, "Global Settings");
+          setParamValuePointer(global_parameter);
+          displayGlobalParameter(global_parameter, *param_value);
           return;
         case enterBtn:
           state = selectSound;
@@ -261,7 +263,7 @@ void process(Event event, int value) {
           displayPreset(currentPreset, preset_number, false);
           return;
         case modWheel:
-           value = value * n_global_parameters / (MIDI_CONTROLLER_MAX+1);
+           value = value * n_global_settings / (MIDI_CONTROLLER_MAX+1);
            if (value != global_parameter) {
              global_parameter = (GlobalParameter)value;
              setParamValuePointer(global_parameter);
@@ -527,7 +529,7 @@ void process(Event event, int value) {
 const char * toString(GlobalParameter p) {
   switch (p) {
     case BassBoostParam: return "Bs.Boost";
-    case BoostFreqParam: return "Frequ.";
+    case BoostFreqParam: return "Boost Frq.";
     case VelocitySlopeParam: return "Velo.Slope";
     case VelocityOffsetParam: return "Velo.Offs.";
     case FilterVelocitySlopeParam: return "Filt.V.Sl.";
@@ -638,7 +640,7 @@ void sendPreset(const Preset & preset) {
 void displayParameterSet(DisplayArea area, const Preset & preset, const ParameterSet & set) {
   switch (set) {
     case CommonSettings: return display(area, "Common Settings");
-    case Foot: return display(area, "Foot Pedal");
+    case Foot: return display(area, "Bass Pedal");
     case Left: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
     case Right: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
   }
@@ -654,8 +656,8 @@ void displayCommonParameter(CommonParameter p, byte value) {
       display(line2right, value);
       break;
     case PedalModeParam:
-      display(line2left, "Pdl. mode:");
-      display(line2right, value == 0 ? "bass pedal" : "controller");
+      display(line2left, "Pdl.mode:");
+      display(line2right, value == 0 ? "Bass" : "Controller");
       break;
   }
   if (value == invalid)
@@ -853,6 +855,9 @@ void setParamValuePointer(CommonParameter p) {
   switch (p) {
     case SplitParam: 
       param_value = &currentPreset.split_point;
+      break;
+    case PedalModeParam:
+      param_value = &currentPreset.pedal_mode;
       break;
   }
 }
