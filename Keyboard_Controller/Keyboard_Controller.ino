@@ -528,6 +528,10 @@ const char * toString(GlobalParameter p) {
   switch (p) {
     case BassBoostParam: return "Bs.Boost";
     case BoostFreqParam: return "Frequ.";
+    case VelocitySlopeParam: return "Velo.Slope";
+    case VelocityOffsetParam: return "Velo.Offs.";
+    case FilterVelocitySlopeParam: return "Filt.V.Sl.";
+    case FilterVelocityOffsetParam: return "Filt.V.Of.";
   }
   return "unknown global";
 }
@@ -771,17 +775,28 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
  * Sends all global MIDI settings: SD2 bass boost gain+frequency, ...
  */
 void sendGlobals() {
-  bassBoost_toNPRN_buff(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
-  midi3.sendSysEx(bassBoost_net_msg_len, NRPN_buff, false);
+  SD2Message msg = bassBoostMsg(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  for (int i = 0; i < n_SD2_parts; i++) {
+    msg = velocitySlopeMsg(i, globalSettings.SD2_velo_slope);
+    midi3.sendSysEx(msg.length, msg.buff, true);
+    msg = velocityOffsetMsg(i, globalSettings.SD2_velo_offset);
+    midi3.sendSysEx(msg.length, msg.buff, true);
+    msg = filtervSlopeMsg(i, globalSettings.SD2_filter_velo_slope);
+    midi3.sendSysEx(msg.length, msg.buff, true);
+    msg = filtervOffsetMsg(i, globalSettings.SD2_filter_velo_offset);
+    midi3.sendSysEx(msg.length, msg.buff, true);
+  }  
 }
 
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
+  SD2Message msg;
   switch (p) {
     case BankParam: return midi3.sendControlChange(midi::BankSelect, (midi::DataByte)value, channel);
     case ProgNoParam: return midi3.sendProgramChange(value, channel);
     case TransposeParam:
-      toNPRN(CoarseTuning, channel - 1, value);
-      midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+      msg = toNRPNMsg(CoarseTuning, channel - 1, value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
       return;
     case VolumeParam:
       if (value != MIDI_CONTROLLER_MEAN)
@@ -798,14 +813,14 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       return;
     case CutoffParam:
       if (value != MIDI_CONTROLLER_MEAN) {
-        toNPRN(TVFCutoff, channel - 1, value);
-        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+        msg = toNRPNMsg(TVFCutoff, channel - 1, value);
+        midi3.sendSysEx(msg.length, msg.buff, true);
       }
       return;
     case ResonanceParam:    
       if (value != MIDI_CONTROLLER_MEAN) {
-        toNPRN(TVFResonance, channel - 1, value);
-        midi3.sendSysEx(sizeof(NRPN_buff), NRPN_buff, true);
+        msg = toNRPNMsg(TVFResonance, channel - 1, value);
+        midi3.sendSysEx(msg.length, msg.buff, true);
       }
       return;
   }
@@ -818,6 +833,18 @@ void setParamValuePointer(GlobalParameter p) {
       break;
     case BoostFreqParam:
       param_value = &globalSettings.SD2_boost_freq;
+      break;
+    case VelocitySlopeParam:
+      param_value = &globalSettings.SD2_velo_slope;
+      break;
+    case VelocityOffsetParam:
+      param_value = &globalSettings.SD2_velo_offset;
+      break;
+    case FilterVelocitySlopeParam:
+      param_value = &globalSettings.SD2_filter_velo_slope;
+      break;
+    case FilterVelocityOffsetParam:
+      param_value = &globalSettings.SD2_filter_velo_offset;
       break;
   }
 }
@@ -876,7 +903,7 @@ void setParamValuePointer(SoundParameter p) {
 
 void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
   mini = 0;
-  range = 1;
+  range = MIDI_CONTROLLER_MAX + 1;
   switch (p) {
     case BassBoostParam:
       range = max_boost_gain + 1;

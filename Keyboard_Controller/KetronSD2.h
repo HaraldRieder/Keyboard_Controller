@@ -4,7 +4,6 @@
 const int max_boost_gain = 6;
 const int max_boost_freq = 7;
 
-
 /* Ketron SD-2 voice banks with control change values */
 enum SD2Bank {
   SD2Presets = 2,
@@ -15,6 +14,7 @@ enum SD2Bank {
 };
 
 const int n_SD2_banks = 5;
+const int n_SD2_parts = 32; // General MIDI parts
 
 /**
  * Returns the name of the SD-2 sound bank as string with a max. length of 5 characters.
@@ -187,45 +187,82 @@ const char * toString(SD2Bank bank, byte program_number) {
   return name_buffer;
 }
 
-enum SD2NPRN {
+struct SD2Message {
+  byte buff[10];
+  int length;
+};
+
+SD2Message SD2_msg;
+
+enum SD2NRPN {
   CoarseTuning, TVFCutoff, TVFResonance
 };
 
-byte NRPN_buff[7];
-
-void toNPRN(SD2NPRN nprn, byte channel, byte value) {
-  NRPN_buff[0] = 0xB0 | channel;
-  NRPN_buff[5] = 0x06;
-  NRPN_buff[6] = value;
-  switch (nprn) {
+SD2Message toNRPNMsg(SD2NRPN nrpn, byte channel, byte value) {
+  SD2_msg.length = 7;
+  SD2_msg.buff[0] = 0xB0 | channel;
+  SD2_msg.buff[5] = 0x06;
+  SD2_msg.buff[6] = value;
+  switch (nrpn) {
     case CoarseTuning:
-      NRPN_buff[1] = 0x65;
-      NRPN_buff[2] = 0x00;
-      NRPN_buff[3] = 0x64;
-      NRPN_buff[4] = 0x02;
-      return;
+      SD2_msg.buff[1] = 0x65;
+      SD2_msg.buff[2] = 0x00;
+      SD2_msg.buff[3] = 0x64;
+      SD2_msg.buff[4] = 0x02;
+      return SD2_msg;
     case TVFCutoff:
     case TVFResonance:
-      NRPN_buff[1] = 0x63;
-      NRPN_buff[2] = 0x01;
-      NRPN_buff[3] = 0x62;
-      NRPN_buff[4] = (nprn == TVFCutoff ? 0x20 : 0x21);
-      return;
+      SD2_msg.buff[1] = 0x63;
+      SD2_msg.buff[2] = 0x01;
+      SD2_msg.buff[3] = 0x62;
+      SD2_msg.buff[4] = (nrpn == TVFCutoff ? 0x20 : 0x21);
+      return SD2_msg;
   }
 }
 
 const int bassBoost_net_msg_len = 6;
 
 /**
- * Creates sysex without start and stop bytes.
+ * Creates most important SD2 sysex messages.
  */
-void bassBoost_toNPRN_buff(byte gain, byte frequency) {
-  NRPN_buff[0] = 0x26;
-  NRPN_buff[1] = 0x7b;
-  NRPN_buff[2] = 0x7d;
-  NRPN_buff[3] = 0x00;
-  NRPN_buff[4] = gain;
-  NRPN_buff[5] = frequency;
+void setSD2SysexMsg(byte type, byte b1, byte b2) {
+  SD2_msg.length = 8;
+  SD2_msg.buff[0] = 0xf0;
+  SD2_msg.buff[1] = 0x26;
+  SD2_msg.buff[2] = 0x7b;
+  SD2_msg.buff[3] = type;
+  SD2_msg.buff[4] = 0x00;
+  SD2_msg.buff[5] = b1;
+  SD2_msg.buff[6] = b2;
+  SD2_msg.buff[7] = 0xf7;
+}
+
+/**
+ * Creates sysex with start and stop bytes.
+ */
+SD2Message bassBoostMsg(byte gain, byte frequency) {
+  setSD2SysexMsg(0x7d, gain, frequency);
+  return SD2_msg;
+}
+
+SD2Message velocitySlopeMsg(byte part, byte value) {
+  setSD2SysexMsg(0x3e, part, value);
+  return SD2_msg;
+}
+
+SD2Message velocityOffsetMsg(byte part, byte value) {
+  setSD2SysexMsg(0x3f, part, value);
+  return SD2_msg;
+}
+
+SD2Message filtervSlopeMsg(byte part, byte value) {
+  setSD2SysexMsg(0x40, part, value);
+  return SD2_msg;
+}
+
+SD2Message filtervOffsetMsg(byte part, byte value) {
+  setSD2SysexMsg(0x41, part, value);
+  return SD2_msg;
 }
 
 

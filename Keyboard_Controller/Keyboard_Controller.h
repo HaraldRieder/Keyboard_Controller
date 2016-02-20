@@ -12,19 +12,21 @@ const byte invalid = 0xff;
 // start address of global settings storage area in EEPROM
 const int GlobalSettingsAddress = 0;
 
-const int n_global_settings = 2;
+const int n_global_settings = 6;
 
 enum GlobalParameter {
-  BassBoostParam, BoostFreqParam
+  BassBoostParam, BoostFreqParam, 
+  VelocitySlopeParam, VelocityOffsetParam, 
+  FilterVelocitySlopeParam, FilterVelocityOffsetParam
 };
 
 struct GlobalSettings {
   byte SD2_bass_boost;
   byte SD2_boost_freq;
-  byte reserved3;
-  byte reserved4;
-  byte reserved5;
-  byte reserved6;
+  byte SD2_velo_slope;
+  byte SD2_velo_offset;
+  byte SD2_filter_velo_slope;
+  byte SD2_filter_velo_offset;
   byte reserved7;
   byte reserved8;
   byte reserved9;
@@ -34,6 +36,8 @@ GlobalSettings globalSettings;
 
 /**
  * Reads global settings from EEPROM.
+ * When the EEPROM still contains 0xff defaults,
+ * reasonable initial values will be chosen for the global settings.
  */
 void readGlobals() {
   // TODO checksum and detection of corrupt data
@@ -44,6 +48,14 @@ void readGlobals() {
     globalSettings.SD2_bass_boost = 0;
   if (globalSettings.SD2_boost_freq > max_boost_freq)
     globalSettings.SD2_boost_freq = max_boost_freq/2;
+  if (globalSettings.SD2_velo_slope > MIDI_CONTROLLER_MAX)
+    globalSettings.SD2_velo_slope = MIDI_CONTROLLER_MEAN;
+  if (globalSettings.SD2_velo_offset > MIDI_CONTROLLER_MAX)
+    globalSettings.SD2_velo_offset = 0;
+  if (globalSettings.SD2_filter_velo_slope > MIDI_CONTROLLER_MAX)
+    globalSettings.SD2_filter_velo_slope = MIDI_CONTROLLER_MEAN;
+  if (globalSettings.SD2_filter_velo_offset > MIDI_CONTROLLER_MAX)
+    globalSettings.SD2_filter_velo_offset = 0;
 }
 
 /**
