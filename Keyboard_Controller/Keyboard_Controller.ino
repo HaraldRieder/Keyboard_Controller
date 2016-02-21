@@ -393,7 +393,7 @@ void process(Event event, int value) {
               break;
             case LeftParameters:
               state = editPresetSound;
-              editedSound = currentPreset.split_point == invalid ? &currentPreset.right : &currentPreset.left;
+              editedSound = &currentPreset.left;
               setParamValuePointer(sound_parameter);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
@@ -558,8 +558,8 @@ void process(Event event, int value) {
 }
 
 void displayInfo() {
-  display(line1left, "Loop delay [ms]:", max_ex_loop_time_ms);
-  display(line2left, "Pedal scan [ms]:", max_scan_time_ms);
+  display(line1, "Loop delay [ms]:", max_ex_loop_time_ms);
+  display(line2, "Pedal scan [ms]:", max_scan_time_ms);
 }
 
 const char * toString(GlobalParameter p) {
@@ -639,6 +639,8 @@ void displayPreset(const Preset & preset, int number, boolean blink) {
 void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel) {
     midi3.sendControlChange(midi::BankSelect, (midi::DataByte)bank, channel);
     midi3.sendProgramChange(program_number, channel);
+    // reset all NRPNs
+    midi3.sendControlChange(0x77, 0, channel);
 }
 
 /**
@@ -653,18 +655,18 @@ void sendSound(const Sound & sound, midi::Channel channel) {
   sendSoundParameter(EffectsParam, sound.effects_send, channel);
   sendSoundParameter(CutoffParam, sound.cutoff_frequency, channel);
   sendSoundParameter(ResonanceParam, sound.resonance, channel);
+  sendSoundParameter(ReleaseTimeParam, sound.release_time, channel);
 }
 
 /**
  * Sends all sound settings of the given preset to MIDI.
  */
 void sendPreset(const Preset & preset) {
-  if (preset.foot.bank != invalid)
+  if (preset.pedal_mode == BassPedal)
     sendSound(preset.foot, foot_channel); 
-  if (preset.left.bank != invalid)
+  if (preset.split_point != invalid)
     sendSound(preset.left, left_channel); 
-  if (preset.right.bank != invalid)
-    sendSound(preset.right, right_channel); 
+  sendSound(preset.right, right_channel); 
 }
 
 /**
@@ -796,6 +798,12 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
         return display(line2right, DFLT);
       }
       return display(line2, "Resonance:", value);
+    case ReleaseTimeParam:    
+      if (value == MIDI_CONTROLLER_MEAN) {
+        display(line2left, "Release:");
+        return display(line2right, DFLT);
+      }
+      return display(line2, "Release:", value);
     case ModAssign:
       return display(line2, "Mod.wheel>", toString((WheelAssignableController)value, false));
     case PitchAssign:
@@ -859,6 +867,11 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
         midi3.sendSysEx(msg.length, msg.buff, true);
       }
       return;
+    case ReleaseTimeParam:
+      if (value != MIDI_CONTROLLER_MEAN) {
+        msg = toNRPNMsg(EnvReleaseTime, channel - 1, value);
+        midi3.sendSysEx(msg.length, msg.buff, true);
+      }
   }
 }
 
@@ -924,6 +937,9 @@ void setParamValuePointer(SoundParameter p) {
       break;
     case ResonanceParam:
       param_value = &(editedSound->resonance);
+      break;
+    case ReleaseTimeParam:
+      param_value = &(editedSound->release_time);
       break;
     case ModAssign:
       param_value = &(editedSound->mod_wheel_ctrl_no);
@@ -1263,13 +1279,22 @@ void handleNoteOff(byte channel, byte note, byte velocity)
 /*--------------------------------- foot pedal ---------------------------------*/
 
 /* lowest pedal note (without transpose) */
-const midi::DataByte E_flat = 15;
+const midi::DataByte E_flat = 27;
 const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
+  boolean preset_mode = true;
+  switch (state) {
+    case playingSound:
+    case selectSound:
+    case editGlobals:
+    case showInfo:
+      preset_mode = false;
+      break;
+  }
   digitalWrite(led_pin, LOW);
-  if (state != playingSound && state != selectSound && currentPreset.pedal_mode == BassPedal) {
-    midi::DataByte note = (midi::DataByte)(currentPreset.foot.transpose + pedal + E_flat);
+  if (preset_mode && currentPreset.pedal_mode == BassPedal) {
+    midi::DataByte note = (midi::DataByte)(pedal + E_flat); // transpose done by SD2
     if (on) 
       midi3.sendNoteOn(note, PedalVelocity, foot_channel);
     else 
@@ -1295,6 +1320,7 @@ void handlePedal(int pedal, boolean on) {
     case 4:
       // rotor fast/slow (not off)
       controller = Rotor;
+      right_text = on ? "Rot. fast":"Rot. slow";
       low_value = 0x40;
       break;
     case 5:
@@ -1391,7 +1417,13 @@ void handlePedal(int pedal, boolean on) {
         }
       }
     }
-    display(line1right, on ? right_text : "");
+    switch (state) {
+      case playingSound:
+      case selectSound:
+      case playingPreset:
+      case selectPreset:
+        display(line1right, (on || controller == Rotor) ? right_text : "");
+    }
   }
   digitalWrite(led_pin, HIGH);
 }

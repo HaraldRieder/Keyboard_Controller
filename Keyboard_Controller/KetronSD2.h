@@ -195,7 +195,7 @@ struct SD2Message {
 SD2Message SD2_msg;
 
 enum SD2NRPN {
-  CoarseTuning, TVFCutoff, TVFResonance
+  CoarseTuning, TVFCutoff, TVFResonance, EnvReleaseTime
 };
 
 SD2Message toNRPNMsg(SD2NRPN nrpn, byte channel, byte value) {
@@ -212,10 +212,16 @@ SD2Message toNRPNMsg(SD2NRPN nrpn, byte channel, byte value) {
       return SD2_msg;
     case TVFCutoff:
     case TVFResonance:
+    case EnvReleaseTime:
       SD2_msg.buff[1] = 0x63;
       SD2_msg.buff[2] = 0x01;
       SD2_msg.buff[3] = 0x62;
-      SD2_msg.buff[4] = (nrpn == TVFCutoff ? 0x20 : 0x21);
+      switch (nrpn) {
+        case TVFCutoff: SD2_msg.buff[4] = 0x20; break;
+        case TVFResonance: SD2_msg.buff[4] = 0x21; break;
+        default: // release time
+          SD2_msg.buff[4] = 0x66;
+      }
       return SD2_msg;
   }
 }

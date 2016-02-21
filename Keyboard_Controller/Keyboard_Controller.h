@@ -113,10 +113,10 @@ public:
   byte ext_switch_2_ctrl_no;
   byte cutoff_frequency;
   byte resonance;
-  byte channel; // not [yet] adjustable but comfortable here
-  byte reserved1;
+  byte release_time;
   byte reserved2;
   byte reserved3;
+  byte channel; // not [yet] adjustable but comfortable here
 };
 
 const long magic = 0x20031fe1;
@@ -180,6 +180,7 @@ void defaultSound(Sound & sound) {
   sound.ext_switch_2_ctrl_no = NoSwitch; 
   sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
   sound.resonance = MIDI_CONTROLLER_MEAN;
+  sound.release_time = MIDI_CONTROLLER_MEAN;
 }
 
 void defaultPreset(Preset & preset) {
@@ -216,12 +217,12 @@ enum CommonParameter {
   PedalModeParam
 };
 
-const int n_sound_parameters = 13;
+const int n_sound_parameters = 14;
 
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, VolumeParam, PanParam, 
   ReverbParam, EffectsParam, CutoffParam, ResonanceParam,
-  ModAssign, PitchAssign, Switch1Assign, Switch2Assign
+  ModAssign, PitchAssign, Switch1Assign, Switch2Assign, ReleaseTimeParam
 };
 
 enum State {
