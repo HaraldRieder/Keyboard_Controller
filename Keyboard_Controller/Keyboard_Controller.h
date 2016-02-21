@@ -206,7 +206,7 @@ void defaultPreset(Preset & preset) {
 const int n_parameter_sets = 4;
 
 enum ParameterSet {
-  CommonSettings, Foot, Left, Right  
+  CommonParameters, FootParameters, LeftParameters, RightParameters  
 };
 
 const int n_common_parameters = 2;
@@ -234,7 +234,8 @@ enum State {
   editPresetSound,
   askSavePreset,
   waitFor2ndTransposeKey,
-  editGlobals
+  editGlobals,
+  showInfo
 };
 
 enum Event {

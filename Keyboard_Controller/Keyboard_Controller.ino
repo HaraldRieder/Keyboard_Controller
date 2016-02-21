@@ -110,7 +110,14 @@ void setup() {
 /* noise supression by hysteresis */
 const int wheel_hysteresis = 3;
 
+// max. time Arduino consumes between 2 calls of loop()
+int max_ex_loop_time_ms;
+int t_start = -1;
+
 void loop() {
+  if (t_start > 0)
+    max_ex_loop_time_ms = max(max_ex_loop_time_ms, millis() - t_start);
+  
   int inval;
   
   // call this often
@@ -177,15 +184,16 @@ void loop() {
       // reserved
       break;
   }
+  midi3.read();
   scanPedal();
-  // call this often
-  midi3.read();
-  //midi2.read();
-  midi3.read();
   
   slice_counter++;
   if (slice_counter >= n_slices)
     slice_counter = 0;
+
+  // call this often
+  midi3.read();
+  t_start = millis();
 }
 
 /*--------------------------------- state event machine ---------------------------------*/
@@ -212,7 +220,7 @@ enum SD2Bank SD2_current_bank = SD2Presets;
  */
 void process(Event event, int value) {
   static GlobalParameter global_parameter = BassBoostParam;
-  static ParameterSet parameter_set = CommonSettings;
+  static ParameterSet parameter_set = CommonParameters;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
   static int int_param_value;
@@ -258,9 +266,8 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           saveGlobals();
-          state = playingPreset;
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number, false);
+          state = showInfo;
+          displayInfo();
           return;
         case modWheel:
            value = value * n_global_settings / (MIDI_CONTROLLER_MAX+1);
@@ -281,6 +288,16 @@ void process(Event event, int value) {
               sendGlobals();
             }
           }
+          return;
+      }
+      return;
+      
+    case showInfo:
+      switch (event) {
+        case exitBtn:
+          state = playingPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number, false);
           return;
       }
       return;
@@ -322,6 +339,7 @@ void process(Event event, int value) {
           state = editPreset;
           lcd.noBlink();
           display(line1, "Edit Preset");
+          parameter_set = CommonParameters;
           displayParameterSet(line2, currentPreset, parameter_set);
           return;
         case pitchWheel:
@@ -362,24 +380,24 @@ void process(Event event, int value) {
           common_parameter = SplitParam;
           sound_parameter = BankParam;
           switch (parameter_set) {
-            case CommonSettings:
+            case CommonParameters:
               state = editPresetCommon;
               setParamValuePointer(common_parameter);
               displayCommonParameter(common_parameter, *param_value);
               break;
-            case Foot:
+            case FootParameters:
               state = editPresetSound;
               editedSound = &currentPreset.foot;
               setParamValuePointer(sound_parameter);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
-            case Left:
+            case LeftParameters:
               state = editPresetSound;
               editedSound = currentPreset.split_point == invalid ? &currentPreset.right : &currentPreset.left;
               setParamValuePointer(sound_parameter);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
-            case Right:
+            case RightParameters:
               state = editPresetSound;
               editedSound = &currentPreset.right;
               setParamValuePointer(sound_parameter);
@@ -389,10 +407,23 @@ void process(Event event, int value) {
           displayParameterSet(line1, currentPreset, parameter_set);
           return;
         case modWheel:
-           value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1);
-           if (value != parameter_set) {
-             parameter_set = (ParameterSet)value;
-             displayParameterSet(line2, currentPreset, parameter_set);
+           // select parameter set
+           {
+             value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1); // now 0..n_parameter_sets
+             // depending on the common parameters we have more or less parameter sets: 
+             // common, foot, left, right
+             // common, left, right (controller pedal)
+             // common, foot, right (no split point)
+             // common, right (controller pedal, no split point)
+             // => correct value when foot or left are not allowed
+             if (currentPreset.split_point == invalid && (ParameterSet)value == LeftParameters)
+               value = RightParameters;
+             if (currentPreset.pedal_mode == ControllerPedal && (ParameterSet)value == FootParameters)
+               value = CommonParameters;
+             if (value != parameter_set) {
+               parameter_set = (ParameterSet)value;
+               displayParameterSet(line2, currentPreset, parameter_set);
+             }
            }
           return;
       }
@@ -428,10 +459,10 @@ void process(Event event, int value) {
           if (common_parameter == SplitParam) {
             *param_value = (byte)value;
             displayCommonParameter(common_parameter, *param_value);
-            //delay(1500);
-            //++common_parameter;
-            //setParamValuePointer(common_parameter);
-            //displayCommonParameter(common_parameter, *param_value);
+            delay(1500);
+            common_parameter = PedalModeParam;
+            setParamValuePointer(common_parameter);
+            displayCommonParameter(common_parameter, *param_value);
           }
           return;
       }
@@ -526,6 +557,11 @@ void process(Event event, int value) {
   }
 }
 
+void displayInfo() {
+  display(line1left, "Loop delay [ms]:", max_ex_loop_time_ms);
+  display(line2left, "Pedal scan [ms]:", max_scan_time_ms);
+}
+
 const char * toString(GlobalParameter p) {
   switch (p) {
     case BassBoostParam: return "Bs.Boost";
@@ -578,10 +614,8 @@ void displaySound(SD2Bank bank, int number, boolean blink) {
  */ 
 void displayPreset(const Preset & preset, int number, boolean blink) {
   display(line1, "Preset", number+1);
-  if (preset.foot.bank != invalid) 
+  if (preset.pedal_mode == BassPedal) 
     display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
-  else 
-    display(line1right, preset_number);
   if (preset.split_point != invalid) {
     display(line2left, toString((SD2Bank)(preset.left.bank), preset.left.program_number));
     display(line2right, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
@@ -639,10 +673,10 @@ void sendPreset(const Preset & preset) {
  */
 void displayParameterSet(DisplayArea area, const Preset & preset, const ParameterSet & set) {
   switch (set) {
-    case CommonSettings: return display(area, "Common Settings");
-    case Foot: return display(area, "Bass Pedal");
-    case Left: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
-    case Right: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
+    case CommonParameters: return display(area, "Common Parameters");
+    case FootParameters: return display(area, "Bass Pedal");
+    case LeftParameters: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
+    case RightParameters: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
   }
 }
 
@@ -1350,7 +1384,7 @@ void handlePedal(int pedal, boolean on) {
           displaySound(SD2_current_bank, program_number, false);
         }
         else if (state == playingPreset) {
-          preset_number = max(0, min(MIDI_CONTROLLER_MAX, preset_number + change_preset_or_sound_by));
+          preset_number = max(0, min(n_presets, preset_number + change_preset_or_sound_by));
           readPresetDefaultChannels(preset_number, currentPreset);
           sendPreset(currentPreset);
           displayPreset(currentPreset, preset_number, true);

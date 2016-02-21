@@ -13,7 +13,7 @@ void handlePedal(int pedal, boolean on);
 const int n_columns = 8; // neighbours belong to different columns
 const int n_rows = 2; // cable supports up to 3, but 2 are sufficient for 15 pedals
 
-boolean pedal_states[n_columns * n_rows] ; // all off, most left pedal = least significant bit
+boolean pedal_states[n_columns * n_rows] ; // all off, most left pedal = 0
 
 /* normally closed pins (Ruhekontakte) */
 const int nc_row_pins[n_rows] = {
@@ -48,7 +48,7 @@ const int column_pins[n_columns] = {
 };
 
 /**
- * To be called in setup.
+ * To be called in Arduino setup().
  */
 void setupPedalPins() {
   for (int i = 0; i < n_rows; i++) {
@@ -63,11 +63,14 @@ void setupPedalPins() {
   }
 }
 
+int max_scan_time_ms;
+
 /**
  * To be called in loop.
  * Calls handlePedalEvent().
  */
 void scanPedal() {
+  int t_start = millis();
   for (int row = 0; row < n_rows; row++) {
     digitalWrite(row_pins[row], LOW);    
     for (int column = 0; column < n_columns; column++) {
@@ -76,15 +79,16 @@ void scanPedal() {
       boolean & state = pedal_states[index]; 
       int value = digitalRead(nc_row_pins[row]);
       if (value == HIGH && state) {
-        handlePedal(index, false);
+        handlePedal(index, state = false);
       }
       value = digitalRead(no_row_pins[row]);
       if (value == HIGH && !state) {
-        handlePedal(index, true);
+        handlePedal(index, state = true);
       }
       digitalWrite(column_pins[column], LOW);
     }
     digitalWrite(row_pins[row], HIGH);    
   }
+  max_scan_time_ms = max(max_scan_time_ms, millis() - t_start);
 }
 
