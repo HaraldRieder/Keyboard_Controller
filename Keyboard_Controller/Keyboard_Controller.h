@@ -51,11 +51,11 @@ void readGlobals() {
   if (globalSettings.SD2_velo_slope > MIDI_CONTROLLER_MAX)
     globalSettings.SD2_velo_slope = MIDI_CONTROLLER_MEAN;
   if (globalSettings.SD2_velo_offset > MIDI_CONTROLLER_MAX)
-    globalSettings.SD2_velo_offset = 0;
+    globalSettings.SD2_velo_offset = MIDI_CONTROLLER_MEAN;
   if (globalSettings.SD2_filter_velo_slope > MIDI_CONTROLLER_MAX)
     globalSettings.SD2_filter_velo_slope = MIDI_CONTROLLER_MEAN;
   if (globalSettings.SD2_filter_velo_offset > MIDI_CONTROLLER_MAX)
-    globalSettings.SD2_filter_velo_offset = 0;
+    globalSettings.SD2_filter_velo_offset = MIDI_CONTROLLER_MEAN;
 }
 
 /**
