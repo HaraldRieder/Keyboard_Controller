@@ -250,6 +250,7 @@ void process(Event event, int value) {
           state = editGlobals;
           display(line1, "Global Settings");
           setParamValuePointer(global_parameter);
+          int_param_value = map_from_byte(global_parameter, *param_value);
           displayGlobalParameter(global_parameter, *param_value);
           return;
         case enterBtn:
@@ -274,6 +275,7 @@ void process(Event event, int value) {
            if (value != global_parameter) {
              global_parameter = (GlobalParameter)value;
              setParamValuePointer(global_parameter);
+             int_param_value = map_from_byte(global_parameter, *param_value);
              displayGlobalParameter(global_parameter, *param_value);
            }
           return;
@@ -383,24 +385,28 @@ void process(Event event, int value) {
             case CommonParameters:
               state = editPresetCommon;
               setParamValuePointer(common_parameter);
+              int_param_value = map_from_byte(common_parameter, *param_value);
               displayCommonParameter(common_parameter, *param_value);
               break;
             case FootParameters:
               state = editPresetSound;
               editedSound = &currentPreset.foot;
               setParamValuePointer(sound_parameter);
+              int_param_value = map_from_byte(sound_parameter, *param_value);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
             case LeftParameters:
               state = editPresetSound;
               editedSound = &currentPreset.left;
               setParamValuePointer(sound_parameter);
+              int_param_value = map_from_byte(sound_parameter, *param_value);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
             case RightParameters:
               state = editPresetSound;
               editedSound = &currentPreset.right;
               setParamValuePointer(sound_parameter);
+              int_param_value = map_from_byte(sound_parameter, *param_value);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
               break;
           }
@@ -441,6 +447,7 @@ void process(Event event, int value) {
            if (value != common_parameter) {
              common_parameter = (CommonParameter)value;
              setParamValuePointer(common_parameter);
+             int_param_value = map_from_byte(common_parameter, *param_value);
              displayCommonParameter(common_parameter, *param_value);
            }
           return;
@@ -448,9 +455,7 @@ void process(Event event, int value) {
           // split point or pedal mode, increment/decrement by 1 or by 10 
           {
             if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
-              if (common_parameter == PedalModeParam)
-                int_param_value = min(1,max(0,int_param_value));
-              *param_value = (byte)int_param_value;
+              *param_value = map_to_byte(common_parameter, int_param_value);
               displayCommonParameter(common_parameter, *param_value);
             }
           }
@@ -462,6 +467,7 @@ void process(Event event, int value) {
             delay(1500);
             common_parameter = PedalModeParam;
             setParamValuePointer(common_parameter);
+            int_param_value = map_from_byte(common_parameter, *param_value);
             displayCommonParameter(common_parameter, *param_value);
           }
           return;
@@ -482,6 +488,7 @@ void process(Event event, int value) {
            if (value != sound_parameter) {
              sound_parameter = (SoundParameter)value;
              setParamValuePointer(sound_parameter);
+             int_param_value = map_from_byte(sound_parameter, *param_value);
              displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
            }
           return;
@@ -704,6 +711,20 @@ byte map_to_byte(GlobalParameter p, int value) {
   return (byte)value;
 }
 
+int map_from_byte(GlobalParameter p, byte value) {
+  return (int)value;
+}
+
+byte map_to_byte(CommonParameter p, int value) {
+   if (p == PedalModeParam)
+     value = min(1,max(0,value));
+   return (byte)value;
+}
+
+int map_from_byte(CommonParameter p, byte value) {
+   return (int)value;
+}
+
 byte map_to_byte(SoundParameter p, int value) {
   switch (p) {
     case BankParam:
@@ -728,6 +749,33 @@ byte map_to_byte(SoundParameter p, int value) {
       return NoSwitch;
     default:
       return (byte)value;
+  }
+}
+
+int map_from_byte(SoundParameter p, byte value) {
+  switch (p) {
+    case BankParam:
+      return toIndex((SD2Bank)value);
+    case ModAssign: case PitchAssign:
+      switch ((WheelAssignableController)value) {
+        case Modulation: return 1;
+        case CutoffFrequency: return 2;
+        case Resonance: return 3;
+        case WhaWhaAmount: return 4;
+        case Pitch: return 5;
+      }
+      return 0;
+    case Switch1Assign: case Switch2Assign:
+      switch (value) {
+        case Sustain: return 1;
+        case Sostenuto: return 2;
+        case Soft: return 3;
+        case WhaWha: return 4;
+        case Rotor: return 5;
+      }
+      return 0;
+    default:
+      return (int)value; // todo sign always ok?
   }
 }
 
@@ -1008,7 +1056,7 @@ boolean changed(const Preset & preset, int preset_number) {
  * @param min_value minimum allowed value for target_value
  * @param max_value maximum allowed value for target_value
  * @param target_value to be incremented/decremented
- * @param true if target_value has been changed
+ * @return true if target_value has been changed
  */
 boolean handlePitchWheelEvent(int value, const int min_value, const int max_value, int * target_value) {
   static int last_pitch_val = 0;
@@ -1308,36 +1356,41 @@ void handlePedal(int pedal, boolean on) {
     const char * right_text = "";
     switch (pedal) {
     case 0:
+      // soft pedal on/off
+      controller = midi::SoftPedal;
+      right_text = "Soft";
       break;
     case 1:
       change_preset_or_sound_by = -10;
       break;
     case 2:
+      // wha-wha on/off
+      controller = WhaWha;
+      right_text = "Wha-Wha";
       break;
     case 3:
       change_preset_or_sound_by = -1;
       break;
     case 4:
-      // rotor fast/slow (not off)
-      controller = Rotor;
-      right_text = on ? "Rot. fast":"Rot. slow";
-      low_value = 0x40;
+      // sustain pedal on/off => left split area
+      controller = midi::Sustain;
+      right_text = "left Sust.";
       break;
     case 5:
       change_preset_or_sound_by = +1;
       break;
     case 6:
-      // wha-wha on/off
-      controller = WhaWha;
-      right_text = "Wha-Wha";
+      // sostenuto pedal on/off => left split area
+      controller = midi::Sostenuto;
+      right_text = "left Sost.";
       break;
     case 7:
       change_preset_or_sound_by = +10;
       break;
     case 8:
-      // portamento on/off
-      controller = midi::Portamento;
-      right_text = "Portam.";
+      // sostenuto pedal on/off => right split area
+      controller = midi::Sostenuto;
+      right_text = "Sostenuto";
       break;
     case 9:
       // in sound mode cycle banks
@@ -1348,24 +1401,25 @@ void handlePedal(int pedal, boolean on) {
       }
       break;
     case 10:
-      // soft pedal on/off
-      controller = midi::SoftPedal;
-      right_text = "Soft";
+      // sustain pedal on/off => right split area
+      controller = midi::Sustain;
+      right_text = "Sustain";
       break;
     case 11:
       break;
     case 12:
-      // sostenuto pedal on/off
-      controller = midi::Sostenuto;
-      right_text = "Sostenuto";
+      // portamento on/off
+      controller = midi::Portamento;
+      right_text = "Portam.";
       break;
     case 13:
       // TODO scale tune with key select
       break;
     case 14:
-      // sustain pedal on/off
-      controller = midi::Sustain;
-      right_text = "Sustain";
+      // rotor fast/slow (not off)
+      controller = Rotor;
+      right_text = on ? "Rot. fast":"Rot. slow";
+      low_value = 0x40;
       break;
     }
     if (controller > 0) {
@@ -1382,14 +1436,21 @@ void handlePedal(int pedal, boolean on) {
             switch (controller) {
               case midi::Sustain:
               case midi::Sostenuto:
+                if (right_text[0] != 'l')
+                  break; // not meant for left area
               case midi::SoftPedal:
-              case WhaWha:
               case Rotor:
+              case WhaWha:
                 midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, left_channel);
             }
             switch (controller) {
-              case midi::Portamento:
+              case midi::Sustain:
+              case midi::Sostenuto:
+                if (right_text[0] == 'l')
+                  break; // not meant for right area
+              case midi::SoftPedal:
               case Rotor:
+              case midi::Portamento:
                 midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
             }
           }
