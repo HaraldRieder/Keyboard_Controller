@@ -26,7 +26,7 @@ const int nc_row_pins[n_rows] = {
 const int no_row_pins[n_rows] = {
   28,  // A12 red-black
   32  // A13 red
-//  36  // R14 rose
+//  36  // A14 rose
 };
 
 const int row_pins[n_rows] = {
