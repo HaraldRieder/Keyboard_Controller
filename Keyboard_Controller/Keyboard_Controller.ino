@@ -44,19 +44,21 @@ Preset currentPreset;
 Sound * currentPresetSounds[n_sounds_per_preset] = 
   { &currentPreset.right, &currentPreset.left, &currentPreset.foot };
 
-midi::Channel sound_channel = 1;
-midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3; // right ch. = left ch. + 1, compatible with Matix_to_MIDI project
+const midi::Channel sound_channel = 1;
+// right ch. = left ch. + 1, compatible to Matix_to_MIDI project
+const midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3; 
 
 /*--------------------------------- setup and main loop ---------------------------------*/
 
 int slice_counter = 0;
 const int n_slices = 7;
 
+// settable channels not yet implemented, use the default channels
 void readPresetDefaultChannels(int presetNumber, Preset & preset) {
   readPreset(presetNumber, preset);
-  currentPreset.left.channel = left_channel;
-  currentPreset.right.channel = right_channel;
-  currentPreset.foot.channel = foot_channel;
+  preset.left.channel = left_channel;
+  preset.right.channel = right_channel;
+  preset.foot.channel = foot_channel;
 }
 
 void setup() {
@@ -419,11 +421,11 @@ void process(Event event, int value) {
              // depending on the common parameters we have more or less parameter sets: 
              // common, foot, left, right
              // common, left, right (controller pedal)
-             // common, foot, right (no split point)
-             // common, right (controller pedal, no split point)
+             // common, foot, left (no split point)
+             // common, left (controller pedal, no split point)
              // => correct value when foot or left are not allowed
-             if (currentPreset.split_point == invalid && (ParameterSet)value == LeftParameters)
-               value = RightParameters;
+             if (currentPreset.split_point == invalid && (ParameterSet)value == RightParameters)
+               value = LeftParameters;
              if (currentPreset.pedal_mode == ControllerPedal && (ParameterSet)value == FootParameters)
                value = CommonParameters;
              if (value != parameter_set) {
@@ -500,9 +502,9 @@ void process(Event event, int value) {
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
               *param_value = map_to_byte(sound_parameter, int_param_value);
               displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
-              midi::Channel ch = right_channel;
-              if (editedSound == &currentPreset.left)
-                ch = left_channel;
+              midi::Channel ch = left_channel;
+              if (editedSound == &currentPreset.right)
+                ch = right_channel;
               else if (editedSound == &currentPreset.foot)
                 ch = foot_channel;
               sendSoundParameter(sound_parameter, *param_value, ch);
@@ -680,8 +682,8 @@ void sendPreset(const Preset & preset) {
   if (preset.pedal_mode == BassPedal)
     sendSound(preset.foot, foot_channel); 
   if (preset.split_point != invalid)
-    sendSound(preset.left, left_channel); 
-  sendSound(preset.right, right_channel); 
+    sendSound(preset.right, right_channel); 
+  sendSound(preset.left, left_channel); 
 }
 
 /**
@@ -1303,7 +1305,7 @@ void handleNoteOn(byte channel, byte note, byte velocity)
       break;
     default: // Preset
       if (currentPreset.split_point == invalid)
-        midi3.sendNoteOn(note, velocity, right_channel);
+        midi3.sendNoteOn(note, velocity, left_channel);
       else {
         if (preset_number == n_presets - 1) {
           // dirty hack, last preset controls my external Juno-D
@@ -1331,7 +1333,7 @@ void handleNoteOff(byte channel, byte note, byte velocity)
       break;
     default: // Preset
       if (currentPreset.split_point == invalid)
-        midi3.sendNoteOff(note, velocity, right_channel);
+        midi3.sendNoteOff(note, velocity, left_channel);
       else {
         if (preset_number == n_presets - 1) {
           // dirty hack, last preset controls my external Juno-D
@@ -1454,7 +1456,7 @@ void handlePedal(int pedal, boolean on) {
           break;
         default:
           if (currentPreset.split_point == invalid)
-            midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
+            midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, left_channel);
           else {
             // depending on the controller type send to left of right channel or both
             switch (controller) {
