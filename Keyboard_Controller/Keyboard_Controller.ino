@@ -45,7 +45,7 @@ Sound * currentPresetSounds[n_sounds_per_preset] =
   { &currentPreset.right, &currentPreset.left, &currentPreset.foot };
 
 midi::Channel sound_channel = 1;
-midi::Channel right_channel = 1, left_channel = 2, foot_channel = 3;
+midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3; // right ch. = left ch. + 1, compatible with Matix_to_MIDI project
 
 /*--------------------------------- setup and main loop ---------------------------------*/
 
@@ -620,17 +620,23 @@ void displaySound(SD2Bank bank, int number, boolean blink) {
  * Displays program names of right, left, foot in the 3 other areas of the LCD.
  */ 
 void displayPreset(const Preset & preset, int number, boolean blink) {
-  display(line1, "Preset", number+1);
-  if (preset.pedal_mode == BassPedal) 
-    display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
-  if (preset.split_point != invalid) {
-    display(line2left, toString((SD2Bank)(preset.left.bank), preset.left.program_number));
-    display(line2right, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+  if (preset_number == n_presets - 1) {
+    display(line1, "External", number+1);
+    display(line2, "transp l/r = +12/-12");
   }
-  else if (preset.right.bank != invalid) 
-    display(line2, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
-  else 
-    display(line2, "Invalid Preset!");
+  else {
+    display(line1, "Preset", number+1);
+    if (preset.pedal_mode == BassPedal) 
+      display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
+    if (preset.split_point != invalid) {
+      display(line2left, toString((SD2Bank)(preset.left.bank), preset.left.program_number));
+      display(line2right, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+    }
+    else if (preset.right.bank != invalid) 
+      display(line2, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+    else 
+      display(line2, "Invalid Preset!");
+  }
   if (blink) {
     lcd.setCursor(lcd_columns/2 - 1,0);
     lcd.blink();
@@ -654,6 +660,8 @@ void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channe
  * Sends sound settings of 1 preset part to MIDI.
  */ 
 void sendSound(const Sound & sound, midi::Channel channel) {
+  if (preset_number == n_presets - 1) 
+    return; // dirty hack for external Juno-D
   sendSound((SD2Bank)sound.bank, sound.program_number, channel);
   sendSoundParameter(TransposeParam, sound.transpose, channel);
   sendSoundParameter(VolumeParam, sound.volume, channel);
@@ -1296,8 +1304,16 @@ void handleNoteOn(byte channel, byte note, byte velocity)
     default: // Preset
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOn(note, velocity, right_channel);
-      else 
-        midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+      else {
+        if (preset_number == n_presets - 1) {
+          // dirty hack, last preset controls my external Juno-D
+          byte n = note > currentPreset.split_point ? note - 12 : note; 
+          midi3.sendNoteOn(n, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+        } 
+        else {
+          midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+        }
+      }
       // handle note on with velocity 0 like note off
       if (velocity == 0 && state != playingPreset)
         process(noteEvent, note);
@@ -1316,8 +1332,16 @@ void handleNoteOff(byte channel, byte note, byte velocity)
     default: // Preset
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOff(note, velocity, right_channel);
-      else 
-        midi3.sendNoteOff(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+      else {
+        if (preset_number == n_presets - 1) {
+          // dirty hack, last preset controls my external Juno-D
+          byte n = note > currentPreset.split_point ? note - 12 : note; 
+          midi3.sendNoteOff(n, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+        } 
+        else {
+          midi3.sendNoteOff(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+        }
+      }
       if (state != playingPreset)
         process(noteEvent, note);
   }
