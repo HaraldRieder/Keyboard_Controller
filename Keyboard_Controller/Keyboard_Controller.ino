@@ -1310,7 +1310,13 @@ void handleNoteOn(byte channel, byte note, byte velocity)
         if (preset_number == n_presets - 1) {
           // dirty hack, last preset controls my external Juno-D
           byte n = note > currentPreset.split_point ? note - 12 : note; 
-          midi3.sendNoteOn(n, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+          if (note > currentPreset.split_point) {
+            midi3.sendNoteOn(n, velocity, right_channel);
+            midi3.sendNoteOn(n, velocity, right_channel + 1);
+          }
+          else {
+            midi3.sendNoteOn(n, velocity, left_channel);
+          }
         } 
         else {
           midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
@@ -1338,7 +1344,13 @@ void handleNoteOff(byte channel, byte note, byte velocity)
         if (preset_number == n_presets - 1) {
           // dirty hack, last preset controls my external Juno-D
           byte n = note > currentPreset.split_point ? note - 12 : note; 
-          midi3.sendNoteOff(n, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+          if (note > currentPreset.split_point) {
+            midi3.sendNoteOff(n, velocity, right_channel);
+            midi3.sendNoteOff(n, velocity, right_channel + 1);
+          }
+          else {
+            midi3.sendNoteOff(n, velocity, left_channel);
+          }
         } 
         else {
           midi3.sendNoteOff(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
