@@ -1133,11 +1133,14 @@ void handleExtSwitch1(int inval) {
     default:
       for (int i = 0; i < n_sounds_per_preset; i++) {
         Sound * s = currentPresetSounds[i];
-        if (s->ext_switch_1_ctrl_no != NoSwitch)
-          midi3.sendControlChange(
-            s->ext_switch_1_ctrl_no, 
-            off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
-            s->channel);
+        if (s->ext_switch_1_ctrl_no != NoSwitch) {
+          midi::DataByte ctrlval = off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX; 
+          if (preset_number == n_presets - 1) {
+            // dirty hack, last preset controls my external Juno-D
+            midi3.sendControlChange(s->ext_switch_1_ctrl_no, ctrlval, s->channel + 1);
+          }
+          midi3.sendControlChange(s->ext_switch_1_ctrl_no, ctrlval, s->channel);
+        }
       }
   }
 }
@@ -1157,11 +1160,14 @@ void handleExtSwitch2(int inval) {
     default:
       for (int i = 0; i < n_sounds_per_preset; i++) {
         Sound * s = currentPresetSounds[i];
-        if (s->ext_switch_2_ctrl_no != NoSwitch)
-          midi3.sendControlChange(
-            s->ext_switch_2_ctrl_no, 
-            off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX, 
-            s->channel);
+        if (s->ext_switch_2_ctrl_no != NoSwitch) {
+          midi::DataByte ctrlval = off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX;
+          if (preset_number == n_presets - 1) {
+            // dirty hack, last preset controls my external Juno-D
+            midi3.sendControlChange(s->ext_switch_2_ctrl_no, ctrlval, s->channel + 1);
+          }
+          midi3.sendControlChange(s->ext_switch_2_ctrl_no, ctrlval, s->channel);
+        }
       }  
   }
 }
@@ -1489,6 +1495,10 @@ void handlePedal(int pedal, boolean on) {
               case midi::SoftPedal:
               case Rotor:
               case midi::Portamento:
+                if (preset_number == n_presets - 1) {
+                  // dirty hack, last preset controls my external Juno-D
+                  midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel + 1);
+                }
                 midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
             }
           }
