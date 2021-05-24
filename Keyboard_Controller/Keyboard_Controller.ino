@@ -37,6 +37,11 @@ boolean pitch_wheel_up;
 const int mod_wheel_pin = A1;
 int mod_wheel_val;
 boolean mod_wheel_up;
+/* volume control */
+const int volume_control_pin = A2;
+int volume_control_val;
+/* internal switch */
+const int int_switch_pin = A3;
 
 /* number of current preset, initially the first preset saved in EEPROM */
 int preset_number = 0;
@@ -62,6 +67,7 @@ void readPresetDefaultChannels(int presetNumber, Preset & preset) {
 }
 
 void setup() {
+  Serial.begin(9600); // debugging
   // set up the LCD's number of columns and rows: 
   lcd.begin(lcd_columns, lcd_rows);
 
@@ -107,6 +113,7 @@ void setup() {
   TIMSK3 = 0;
   TIMSK4 = 0;
   TIMSK5 = 0;
+  Serial.println("ready");
 }
 
 /* noise supression by hysteresis */
@@ -183,7 +190,24 @@ void loop() {
       }
       break;
     case 6:
-      // reserved
+      inval = analogRead(volume_control_pin);
+      // if changed, with +-2 jitter suppression
+      if (inval > volume_control_val + 2 || inval < volume_control_val - 2) {
+        volume_control_val = inval;
+        inval = analogRead(int_switch_pin);
+        if (inval > 512) {
+          // switch pressed -> change reverb level 0..16
+          SD2Message msg = reverbLevelMsg(volume_control_val*17/1024);
+          //SD2Message msg = reverbTypeMsg(volume_control_val*17/1024);
+          midi3.sendSysEx(msg.length, msg.buff, true);
+          Serial.print(volume_control_val*17/1024); Serial.println(" reverb level");
+        } else {
+          // change volume 0..127
+          SD2Message msg = gmVolumeMsg(volume_control_val/8);
+          midi3.sendSysEx(msg.length, msg.buff, true);
+          Serial.print(volume_control_val/8); Serial.println(" GM volume");
+        }
+      }
       break;
   }
   midi3.read();

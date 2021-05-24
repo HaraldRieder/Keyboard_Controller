@@ -244,6 +244,38 @@ void setSD2SysexMsg(byte type, byte b1, byte b2) {
 }
 
 /**
+ * General MIDI volume, pan, etc.
+ */
+void setShortSD2SysexMsg(byte type, byte b) {
+  SD2_msg.length = 7;
+  SD2_msg.buff[0] = 0xf0;
+  SD2_msg.buff[1] = 0x26;
+  SD2_msg.buff[2] = 0x7b;
+  SD2_msg.buff[3] = type;
+  SD2_msg.buff[4] = 0x00;
+  SD2_msg.buff[5] = b;
+  SD2_msg.buff[6] = 0xf7;
+}
+
+/**
+ * General MIDI volume 0..127.
+ */
+SD2Message gmVolumeMsg(byte value) {
+  setShortSD2SysexMsg(0x38, value);
+}
+
+/**
+ * Reverb level 0..16.
+ */
+SD2Message reverbLevelMsg(byte value) {
+  setShortSD2SysexMsg(0x02, value);
+}
+
+SD2Message reverbTypeMsg(byte value) {
+  setShortSD2SysexMsg(0x00, value<6?value:0x7f);
+}
+
+/**
  * Creates sysex with start and stop bytes.
  */
 SD2Message bassBoostMsg(byte gain, byte frequency) {
@@ -273,5 +305,3 @@ SD2Message filtervOffsetMsg(byte part, byte value) {
   setSD2SysexMsg(0x41, part, value);
   return SD2_msg;
 }
-
-
