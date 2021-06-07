@@ -39,7 +39,8 @@ int mod_wheel_val;
 boolean mod_wheel_up;
 /* volume control */
 const int volume_control_pin = A2;
-int volume_control_val;
+int volume_control_val = 1023; // 0..1023 analog value
+int volume_val = MIDI_CONTROLLER_MAX; // 0..127 MIDI value
 /* internal switch */
 const int int_switch_pin = A3;
 
@@ -194,19 +195,11 @@ void loop() {
       // if changed, with +-2 jitter suppression
       if (inval > volume_control_val + 2 || inval < volume_control_val - 2) {
         volume_control_val = inval;
-        inval = analogRead(int_switch_pin);
-        if (inval > 512) {
-          // switch pressed -> change reverb level 0..16
-          SD2Message msg = reverbLevelMsg(volume_control_val*17/1024);
-          //SD2Message msg = reverbTypeMsg(volume_control_val*17/1024);
-          midi3.sendSysEx(msg.length, msg.buff, true);
-          Serial.print(volume_control_val*17/1024); Serial.println(" reverb level");
-        } else {
-          // change volume 0..127
-          SD2Message msg = gmVolumeMsg(volume_control_val/8);
-          midi3.sendSysEx(msg.length, msg.buff, true);
-          Serial.print(volume_control_val/8); Serial.println(" GM volume");
+        inval /= 8;
+        if (inval != volume_val) {
+          process(volumeKnob, volume_val = inval);
         }
+        //inval = analogRead(int_switch_pin); reserve
       }
       break;
   }
@@ -267,6 +260,9 @@ void process(Event event, int value) {
           sendPreset(currentPreset);
           displayPreset(currentPreset, preset_number, true);
           return;
+        case volumeKnob:
+          sendVolumes(currentPreset, value);
+          return;
       }
       return;
       
@@ -285,6 +281,9 @@ void process(Event event, int value) {
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
           displaySound(SD2_current_bank, program_number, true);
+          return;
+        case volumeKnob:
+          sendSoundParameter(VolumeParam, value, sound_channel);
           return;
       }
       return;
@@ -339,7 +338,8 @@ void process(Event event, int value) {
         case pitchWheel:
           // sound select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
-            midi3.sendProgramChange(program_number, sound_channel);
+            //midi3.sendProgramChange(program_number, sound_channel);
+            sendSound(SD2_current_bank, program_number, sound_channel);
             displaySound(SD2_current_bank, program_number, true);
           }
           return;
@@ -352,6 +352,9 @@ void process(Event event, int value) {
             sendSound(SD2_current_bank, program_number, sound_channel);
             displaySound(SD2_current_bank, program_number, true);
           }
+          return;
+        case volumeKnob:
+          sendSoundParameter(VolumeParam, value, sound_channel);
           return;
       }
       return;
@@ -386,6 +389,9 @@ void process(Event event, int value) {
             sendPreset(currentPreset);
             displayPreset(currentPreset, preset_number, true);
           }
+          return;
+        case volumeKnob:
+          sendVolumes(currentPreset, value);
           return;
       }
       return; 
@@ -680,6 +686,7 @@ void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channe
     midi3.sendProgramChange(program_number, channel);
     // reset all NRPNs
     midi3.sendControlChange(0x77, 0, channel);
+    sendSoundParameter(VolumeParam, volume_control_val/8, channel);
 }
 
 /**
@@ -700,6 +707,18 @@ void sendSound(const Sound & sound, midi::Channel channel) {
 }
 
 /**
+ * In preset mode common volume parameter controls all channels.
+ * @param value 0..127 total volume
+ */
+void sendVolumes(const Preset & preset, int value) {
+  if (preset.pedal_mode == BassPedal) 
+    sendSoundParameter(VolumeParam, value*preset.foot.volume/MIDI_CONTROLLER_MAX, foot_channel);
+  if (preset.split_point != invalid)
+    sendSoundParameter(VolumeParam, value*preset.right.volume/MIDI_CONTROLLER_MAX, right_channel);
+  sendSoundParameter(VolumeParam, value*preset.left.volume/MIDI_CONTROLLER_MAX, left_channel);   
+}
+
+/**
  * Sends all sound settings of the given preset to MIDI.
  */
 void sendPreset(const Preset & preset) {
@@ -707,7 +726,8 @@ void sendPreset(const Preset & preset) {
     sendSound(preset.foot, foot_channel); 
   if (preset.split_point != invalid)
     sendSound(preset.right, right_channel); 
-  sendSound(preset.left, left_channel); 
+  sendSound(preset.left, left_channel);
+  sendVolumes(preset, volume_val);
 }
 
 /**

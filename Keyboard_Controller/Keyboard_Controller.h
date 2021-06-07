@@ -240,7 +240,7 @@ enum State {
 };
 
 enum Event {
-  enterBtn, exitBtn, modWheel, pitchWheel, noteEvent
+  enterBtn, exitBtn, modWheel, pitchWheel, noteEvent, volumeKnob
 };
 
 void displaySound(SD2Bank bank, int program_number);
@@ -249,11 +249,3 @@ void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channe
 void sendSound(const Sound & sound, midi::Channel channel);
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
 void process(Event event, int value);
-
-
-
-
-
-
-
-
