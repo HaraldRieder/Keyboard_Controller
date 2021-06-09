@@ -81,11 +81,12 @@ void setup() {
   setupPedalPins();
 
   midi::Channel in_channel = 1; // GT-2 mini channel
-  midi3.setHandleNoteOn(handleNoteOn);
-  midi3.setHandleNoteOff(handleNoteOff);
-  midi3.begin(in_channel);
-  midi3.setThruFilterMode(midi::Off);
-//  midi2.begin(channel);
+  midi2.setHandleNoteOn(handleNoteOn);
+  midi2.setHandleNoteOff(handleNoteOff);
+  midi2.begin(in_channel);
+  midi2.setThruFilterMode(midi::Full);
+  midi3.begin(MIDI_CHANNEL_OMNI);
+  midi3.setThruFilterMode(midi::Full);
 
   ext_switch_1_val = digitalRead(ext_switch_1_pin);
   ext_switch_1_opener = (ext_switch_1_val == LOW);
@@ -131,8 +132,7 @@ void loop() {
   int inval;
   
   // call this often
-  midi3.read();
-  //midi2.read();
+  midi2.read();
   midi3.read();
 
   switch (slice_counter) {
@@ -203,6 +203,7 @@ void loop() {
       }
       break;
   }
+  midi2.read();
   midi3.read();
   scanPedal();
   
@@ -211,6 +212,7 @@ void loop() {
     slice_counter = 0;
 
   // call this often
+  midi2.read();
   midi3.read();
   t_start = millis();
 }
@@ -338,7 +340,6 @@ void process(Event event, int value) {
         case pitchWheel:
           // sound select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
-            //midi3.sendProgramChange(program_number, sound_channel);
             sendSound(SD2_current_bank, program_number, sound_channel);
             displaySound(SD2_current_bank, program_number, true);
           }
@@ -1262,7 +1263,6 @@ void handlePitchWheel(unsigned int inval) {
     //display(line1, "pitch ", inval);
     switch (state) {
       case playingSound:
-      case selectSound:
         midi3.sendPitchBend(pitch, sound_channel);
         break;
       case playingPreset:
@@ -1317,7 +1317,6 @@ void handleModWheel(unsigned int inval) {
     //display(line2, "mod", inval);
     switch (state) {
       case playingSound:
-      case selectSound:
         midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
         break;
       case playingPreset:
@@ -1347,7 +1346,7 @@ void handleModWheel(unsigned int inval) {
 
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
-  digitalWrite(led_pin, LOW);
+  //digitalWrite(led_pin, LOW);
   switch (state) {
     case playingSound: 
     case selectSound:
@@ -1376,12 +1375,12 @@ void handleNoteOn(byte channel, byte note, byte velocity)
       if (velocity == 0 && state != playingPreset)
         process(noteEvent, note);
   }
-  digitalWrite(led_pin, HIGH);
+  //digitalWrite(led_pin, HIGH);
 }
 
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
-  digitalWrite(led_pin, LOW);
+  //digitalWrite(led_pin, LOW);
   switch (state) {
     case playingSound: 
     case selectSound:
@@ -1409,7 +1408,7 @@ void handleNoteOff(byte channel, byte note, byte velocity)
       if (state != playingPreset)
         process(noteEvent, note);
   }
-  digitalWrite(led_pin, HIGH);
+  //digitalWrite(led_pin, HIGH);
 }
 
 /*--------------------------------- foot pedal ---------------------------------*/
@@ -1428,7 +1427,7 @@ void handlePedal(int pedal, boolean on) {
       preset_mode = false;
       break;
   }
-  digitalWrite(led_pin, LOW);
+  //digitalWrite(led_pin, LOW);
   if (preset_mode && currentPreset.pedal_mode == BassPedal) {
     midi::DataByte note = (midi::DataByte)(pedal + E_flat); // transpose done by SD2
     if (on) 
@@ -1578,5 +1577,5 @@ void handlePedal(int pedal, boolean on) {
         display(line1right, (on || controller == Rotor) ? right_text : "");
     }
   }
-  digitalWrite(led_pin, HIGH);
+  //digitalWrite(led_pin, HIGH);
 }
