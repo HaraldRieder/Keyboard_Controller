@@ -84,9 +84,9 @@ void setup() {
   midi2.setHandleNoteOn(handleNoteOn);
   midi2.setHandleNoteOff(handleNoteOff);
   midi2.begin(in_channel);
-  midi2.setThruFilterMode(midi::Full);
+  midi2.setThruFilterMode(midi::Thru::Full);
   midi3.begin(MIDI_CHANNEL_OMNI);
-  midi3.setThruFilterMode(midi::Full);
+  midi3.setThruFilterMode(midi::Thru::Full);
 
   ext_switch_1_val = digitalRead(ext_switch_1_pin);
   ext_switch_1_opener = (ext_switch_1_val == LOW);
