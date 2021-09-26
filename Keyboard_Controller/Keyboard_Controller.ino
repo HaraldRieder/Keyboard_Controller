@@ -25,10 +25,10 @@ int ext_switch_2_val;
 boolean ext_switch_2_opener = false;
 /* enter (red) button pin and last known value */
 const int push_btn_enter_pin = 52;
-int push_btn_enter_val;
+int push_btn_enter_val = HIGH;
 /* exit (black) button pin and last known value */
 const int push_btn_exit_pin = 50;
-int push_btn_exit_val;
+int push_btn_exit_val = HIGH;
 /* pitch bend wheel input pin and last known value */
 const int pitch_wheel_pin = A0;
 int pitch_wheel_val;
@@ -654,7 +654,7 @@ void displaySound(SD2Bank bank, int number, boolean blink) {
  */ 
 void displayPreset(const Preset & preset, int number, boolean blink) {
   if (preset_number == n_presets - 1) {
-    display(line1, "External", number+1);
+    display(line1, "External");
     display(line2, "transp l/r = +12/-12");
   }
   else {
@@ -745,7 +745,6 @@ void displayParameterSet(DisplayArea area, const Preset & preset, const Paramete
 }
 
 const char * NONE = "(none)";
-const char * DFLT = "(default)";
 
 void displayCommonParameter(CommonParameter p, byte value) {
   switch (p) {
@@ -865,10 +864,6 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
     case TransposeParam:
       return display(line2, "Transpose:", (int)value - MIDI_CONTROLLER_MEAN);
     case VolumeParam:
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "Volume:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "Volume:", value);
     case PanParam:
       display(line2left, "Pan:");
@@ -878,34 +873,14 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
         return display(line2right, ">>>", value - MIDI_CONTROLLER_MEAN);
       return display(line2right, MIDI_CONTROLLER_MEAN - value, "<<<");
     case ReverbParam:
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "Rev. send:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "Reverb send:", value);
     case EffectsParam:    
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "FX send:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "FX send:", value);
     case CutoffParam:
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "Cutoff f.:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "Cutoff frequ.:", value);
     case ResonanceParam:    
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "Resonance:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "Resonance:", value);
     case ReleaseTimeParam:    
-      if (value == MIDI_CONTROLLER_MEAN) {
-        display(line2left, "Release:");
-        return display(line2right, DFLT);
-      }
       return display(line2, "Release:", value);
     case ModAssign:
       return display(line2, "Mod.wheel>", toString((WheelAssignableController)value, false));
@@ -945,36 +920,19 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       msg = toNRPNMsg(CoarseTuning, channel - 1, value);
       midi3.sendSysEx(msg.length, msg.buff, true);
       return;
-    case VolumeParam:
-      if (value != MIDI_CONTROLLER_MEAN)
-        midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
-      return;
+    case VolumeParam: return midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
     case PanParam: return midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
-    case ReverbParam: 
-      if (value != MIDI_CONTROLLER_MEAN)
-        midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
-      return;
-    case EffectsParam: 
-      if (value != MIDI_CONTROLLER_MEAN)
-        midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
-      return;
+    case ReverbParam: return midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
+    case EffectsParam: return midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
     case CutoffParam:
-      if (value != MIDI_CONTROLLER_MEAN) {
-        msg = toNRPNMsg(TVFCutoff, channel - 1, value);
-        midi3.sendSysEx(msg.length, msg.buff, true);
-      }
-      return;
+      msg = toNRPNMsg(TVFCutoff, channel - 1, value);
+      return midi3.sendSysEx(msg.length, msg.buff, true);
     case ResonanceParam:    
-      if (value != MIDI_CONTROLLER_MEAN) {
-        msg = toNRPNMsg(TVFResonance, channel - 1, value);
-        midi3.sendSysEx(msg.length, msg.buff, true);
-      }
-      return;
+      msg = toNRPNMsg(TVFResonance, channel - 1, value);
+      return midi3.sendSysEx(msg.length, msg.buff, true);
     case ReleaseTimeParam:
-      if (value != MIDI_CONTROLLER_MEAN) {
-        msg = toNRPNMsg(EnvReleaseTime, channel - 1, value);
-        midi3.sendSysEx(msg.length, msg.buff, true);
-      }
+      msg = toNRPNMsg(EnvReleaseTime, channel - 1, value);
+      return midi3.sendSysEx(msg.length, msg.buff, true);
   }
 }
 
@@ -1481,7 +1439,7 @@ void handlePedal(int pedal, boolean on) {
       break;
     case 9:
       // in sound mode cycle banks
-      if (state == playingSound || state == selectSound) {
+      if (state == playingSound && on) {
         SD2_current_bank = toSD2Bank(toIndex(SD2_current_bank) + 1);
         sendSound(SD2_current_bank, program_number, sound_channel);
         displaySound(SD2_current_bank, program_number, false);
@@ -1549,32 +1507,37 @@ void handlePedal(int pedal, boolean on) {
     }
     else if (change_preset_or_sound_by != 0) {
       const char * sign = change_preset_or_sound_by > 0 ? "+" : "-";
-      if (on) {
-        // display the increment/decrement value
-        display(line1right, sign, abs(change_preset_or_sound_by));
-        return;
-      } 
-      else {
-        // display the new current sound / preset
-        if (state == playingSound) {
-          program_number = max(0, min(MIDI_CONTROLLER_MAX, program_number + change_preset_or_sound_by));
-          sendSound(SD2_current_bank, program_number, sound_channel);
-          displaySound(SD2_current_bank, program_number, false);
-        }
-        else if (state == playingPreset) {
-          preset_number = max(0, min(n_presets, preset_number + change_preset_or_sound_by));
-          readPresetDefaultChannels(preset_number, currentPreset);
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number, true);
-        }
+      switch (state) {
+        case playingSound:
+        case playingPreset: 
+          if (on) {
+            // display the increment/decrement value
+            display(line1right, sign, abs(change_preset_or_sound_by));
+            return;
+          } 
+          else {
+            // display the new current sound / preset
+            if (state == playingPreset) {
+              preset_number = max(0, min(n_presets - 1, preset_number + change_preset_or_sound_by));
+              readPresetDefaultChannels(preset_number, currentPreset);
+              sendPreset(currentPreset);
+              displayPreset(currentPreset, preset_number, false);
+            } 
+            else {
+              program_number = max(0, min(MIDI_CONTROLLER_MAX, program_number + change_preset_or_sound_by));
+              sendSound(SD2_current_bank, program_number, sound_channel);
+              displaySound(SD2_current_bank, program_number, false);
+            }
+          }
       }
-    }
-    switch (state) {
-      case playingSound:
-      case selectSound:
-      case playingPreset:
-      case selectPreset:
-        display(line1right, (on || controller == Rotor) ? right_text : "");
+      return;
+    } 
+    if (currentPreset.pedal_mode != BassPedal) {
+      switch (state) {
+          case playingSound:
+          case playingPreset:
+            display(line1right, (on || controller == Rotor) ? right_text : "");
+      }
     }
   }
   //digitalWrite(led_pin, HIGH);
