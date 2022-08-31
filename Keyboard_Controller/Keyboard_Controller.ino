@@ -23,6 +23,11 @@ boolean ext_switch_1_opener = false;
 const int ext_switch_2_pin = 51;
 int ext_switch_2_val;
 boolean ext_switch_2_opener = false;
+/* external controller pedal, same socket as external switch 2 */
+const int external_control_pin = A7; 
+const int external_control_maxval = 885; // with 68k popup and 450k controller pedal (log.)
+int external_control_val = external_control_maxval; // analog value
+int external_val = MIDI_CONTROLLER_MAX; // 0..127 MIDI value
 /* enter (red) button pin and last known value */
 const int push_btn_enter_pin = 52;
 int push_btn_enter_val = HIGH;
@@ -57,7 +62,7 @@ const midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3;
 /*--------------------------------- setup and main loop ---------------------------------*/
 
 int slice_counter = 0;
-const int n_slices = 7;
+const int n_slices = 8;
 
 // settable channels not yet implemented, use the default channels
 void readPresetDefaultChannels(int presetNumber, Preset & preset) {
@@ -74,7 +79,7 @@ void setup() {
 
   pinMode(led_pin, OUTPUT);
   pinMode(ext_switch_1_pin, INPUT_PULLUP);
-  pinMode(ext_switch_2_pin, INPUT_PULLUP);
+  pinMode(ext_switch_2_pin, INPUT); // ext. 68k pullup, allow 470k logarithmic controller pedal
   pinMode(push_btn_enter_pin, INPUT_PULLUP);
   pinMode(push_btn_exit_pin, INPUT_PULLUP);
   
@@ -200,6 +205,19 @@ void loop() {
           process(volumeKnob, volume_val = inval);
         }
         //inval = analogRead(int_switch_pin); reserve
+      }
+      break;
+    case 7:
+      inval = analogRead(external_control_pin);
+      // if changed, with +-2 jitter suppression
+      if (inval > external_control_val + 2 || inval < external_control_val - 2) {
+        external_control_val = inval;
+        // because of the right choice of pullup, values arrive linear enough
+        inval = min((long)inval * MIDI_CONTROLLER_MAX / external_control_maxval, MIDI_CONTROLLER_MAX);
+        if (inval != external_val) {
+          externalControl(external_val = inval);
+          //Serial.print("external val "); Serial.println(external_val);
+        }
       }
       break;
   }
@@ -683,7 +701,7 @@ void displayPreset(const Preset & preset, int number, boolean blink) {
  * @param channel MIDI channel 1..16
  */
 void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel) {
-    midi3.sendControlChange(midi::BankSelect, (midi::DataByte)bank, channel);
+    midi3.sendControlChange(midi::BankSelect, (midi::DataByte)bank, channel); // only MSB necessary for SD2
     midi3.sendProgramChange(program_number, channel);
     // reset all NRPNs
     midi3.sendControlChange(0x77, 0, channel);
@@ -1298,6 +1316,15 @@ void handleModWheel(unsigned int inval) {
       process(modWheel, modulation);
     }
   }
+}
+
+/*------------------------------- external controller pedal --------------------------*/
+
+void externalControl(int value) {
+  if (currentPreset.split_point == invalid)
+    midi3.sendControlChange(midi::ExpressionController, value, left_channel);
+  else
+    midi3.sendControlChange(midi::ExpressionController, value, right_channel);
 }
 
 /*--------------------------------- note  on / note off ---------------------------------*/
