@@ -738,6 +738,24 @@ void sendVolumes(const Preset & preset, int value) {
 }
 
 /**
+ * When changing between presets with and without split point
+ * make sure that the uncontrollable channel is reset to
+ * normal volume (max. expression value).
+ */
+void sendExpression(const Preset & preset) {
+  if (preset.split_point == invalid) {
+    midi3.sendControlChange(midi::ExpressionController, external_val, left_channel);
+    // reset right channel, not controllable (any more)
+    midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX, right_channel);
+  }
+  else {
+    // reset left channel, not controllable (any more)
+    midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX, left_channel);
+    midi3.sendControlChange(midi::ExpressionController, external_val, right_channel);
+  }
+}
+
+/**
  * Sends all sound settings of the given preset to MIDI.
  */
 void sendPreset(const Preset & preset) {
@@ -747,6 +765,7 @@ void sendPreset(const Preset & preset) {
     sendSound(preset.right, right_channel); 
   sendSound(preset.left, left_channel);
   sendVolumes(preset, volume_val);
+  sendExpression(preset);
 }
 
 /**
