@@ -1,4 +1,4 @@
-# Tasteninstrument mit 6+6 Tastatur
+## Tasteninstrument mit 6+6 Tastatur
 
 ![](mechanics/799px-Stoppleiste_hinten.JPG)
 
