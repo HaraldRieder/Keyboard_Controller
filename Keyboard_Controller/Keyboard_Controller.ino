@@ -2,7 +2,7 @@
 #include <EEPROM.h>
 #include <MIDI.h>
 #include <MemoryFree.h>
-#include "KetronSD2.h"
+#include "SonorityXXL.h"
 #include "Pedal.h"
 #include "Display.h"
 #include "Keyboard_Controller.h"
@@ -250,7 +250,7 @@ byte * param_value ;
 
 /* in sound mode */
 int program_number = 0;
-enum SD2Bank SD2_current_bank = SD2Presets;
+enum SoXXLBank current_bank = GeneralMIDI;
 
 /**
  * The state event machine for the user interface.
@@ -270,10 +270,10 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           state = playingSound;
-          sendSound(SD2_current_bank, program_number, sound_channel);
+          sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
-          displaySound(SD2_current_bank, program_number, false);
+          displaySound(current_bank, program_number, false);
           return;
         case enterBtn:
           state = selectPreset;
@@ -297,10 +297,10 @@ void process(Event event, int value) {
           return;
         case enterBtn:
           state = selectSound;
-          sendSound(SD2_current_bank, program_number, sound_channel);
+          sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
-          displaySound(SD2_current_bank, program_number, true);
+          displaySound(current_bank, program_number, true);
           return;
         case volumeKnob:
           sendSoundParameter(VolumeParam, value, sound_channel);
@@ -353,23 +353,23 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           state = playingSound;
-          displaySound(SD2_current_bank, program_number, false);
+          displaySound(current_bank, program_number, false);
           return;
         case pitchWheel:
           // sound select, increment/decrement by 1 or by 10 
           if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
-            sendSound(SD2_current_bank, program_number, sound_channel);
-            displaySound(SD2_current_bank, program_number, true);
+            sendSound(current_bank, program_number, sound_channel);
+            displaySound(current_bank, program_number, true);
           }
           return;
         case modWheel:
           // bank select, program number remains unchanged
-          value = value * n_SD2_banks / (MIDI_CONTROLLER_MAX+1);
-          SD2Bank bank = toSD2Bank(value);
-          if (bank != SD2_current_bank) {
-            SD2_current_bank = bank;
-            sendSound(SD2_current_bank, program_number, sound_channel);
-            displaySound(SD2_current_bank, program_number, true);
+          value = value * n_SoXXL_banks / (MIDI_CONTROLLER_MAX+1);
+          SoXXLBank bank = toSoXXLBank(value);
+          if (bank != current_bank) {
+            current_bank = bank;
+            sendSound(current_bank, program_number, sound_channel);
+            displaySound(current_bank, program_number, true);
           }
           return;
         case volumeKnob:
@@ -444,21 +444,21 @@ void process(Event event, int value) {
               editedSound = &currentPreset.foot;
               setParamValuePointer(sound_parameter);
               int_param_value = map_from_byte(sound_parameter, *param_value);
-              displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+              displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               break;
             case LeftParameters:
               state = editPresetSound;
               editedSound = &currentPreset.left;
               setParamValuePointer(sound_parameter);
               int_param_value = map_from_byte(sound_parameter, *param_value);
-              displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+              displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               break;
             case RightParameters:
               state = editPresetSound;
               editedSound = &currentPreset.right;
               setParamValuePointer(sound_parameter);
               int_param_value = map_from_byte(sound_parameter, *param_value);
-              displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+              displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               break;
           }
           displayParameterSet(line1, currentPreset, parameter_set);
@@ -540,7 +540,7 @@ void process(Event event, int value) {
              sound_parameter = (SoundParameter)value;
              setParamValuePointer(sound_parameter);
              int_param_value = map_from_byte(sound_parameter, *param_value);
-             displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+             displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
            }
           return;
         case pitchWheel:
@@ -550,7 +550,7 @@ void process(Event event, int value) {
             getMinMaxRange(sound_parameter, mini, maxi, range);
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
               *param_value = map_to_byte(sound_parameter, int_param_value);
-              displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+              displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               midi::Channel ch = left_channel;
               if (editedSound == &currentPreset.right)
                 ch = right_channel;
@@ -577,7 +577,7 @@ void process(Event event, int value) {
           *param_value = (byte)(value - int_param_value + MIDI_CONTROLLER_MEAN);
         case exitBtn:
           displayParameterSet(line1, currentPreset, parameter_set);
-          displaySoundParameter(sound_parameter, *param_value, (SD2Bank)editedSound->bank);
+          displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
           state = editPresetSound;
       }
       return;
@@ -652,7 +652,7 @@ void displayDestinationPreset(int preset_number) {
  * Displays "Sound" in line 1 of the LCD.
  * Displays bank name, program number (starting with 1) and program name in line 2.
  */ 
-void displaySound(SD2Bank bank, int number, boolean blink) {
+void displaySound(SoXXLBank bank, int number, boolean blink) {
   display(line1, "Sound");
   // display bank name and program number starting with 1
   display(line2left, toString(bank), number+1);
@@ -678,13 +678,13 @@ void displayPreset(const Preset & preset, int number, boolean blink) {
   else {
     display(line1, "Preset", number+1);
     if (preset.pedal_mode == BassPedal) 
-      display(line1right, toString((SD2Bank)(preset.foot.bank), preset.foot.program_number));
+      display(line1right, toString((SoXXLBank)(preset.foot.bank), preset.foot.program_number));
     if (preset.split_point != invalid) {
-      display(line2left, toString((SD2Bank)(preset.left.bank), preset.left.program_number));
-      display(line2right, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+      display(line2left, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
+      display(line2right, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
     }
     else if (preset.right.bank != invalid) 
-      display(line2, toString((SD2Bank)(preset.right.bank), preset.right.program_number));
+      display(line2, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
     else 
       display(line2, "Invalid Preset!");
   }
@@ -700,7 +700,7 @@ void displayPreset(const Preset & preset, int number, boolean blink) {
  * Sends bank select and program change MIDI messages on channel.
  * @param channel MIDI channel 1..16
  */
-void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel) {
+void sendSound(SoXXLBank bank, midi::DataByte program_number, midi::Channel channel) {
     midi3.sendControlChange(midi::BankSelect, (midi::DataByte)bank, channel); // only MSB necessary for SD2
     midi3.sendProgramChange(program_number, channel);
     // reset all NRPNs
@@ -714,7 +714,7 @@ void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channe
 void sendSound(const Sound & sound, midi::Channel channel) {
   if (preset_number == n_presets - 1) 
     return; // dirty hack for external Juno-D
-  sendSound((SD2Bank)sound.bank, sound.program_number, channel);
+  sendSound((SoXXLBank)sound.bank, sound.program_number, channel);
   sendSoundParameter(TransposeParam, sound.transpose, channel);
   sendSoundParameter(VolumeParam, sound.volume, channel);
   sendSoundParameter(PanParam, sound.pan, channel);
@@ -819,7 +819,7 @@ int map_from_byte(CommonParameter p, byte value) {
 byte map_to_byte(SoundParameter p, int value) {
   switch (p) {
     case BankParam:
-      return toSD2Bank(value);
+      return toSoXXLBank(value);
     case ModAssign: case PitchAssign:
       switch (value) {
         case 1: return Modulation;
@@ -846,7 +846,7 @@ byte map_to_byte(SoundParameter p, int value) {
 int map_from_byte(SoundParameter p, byte value) {
   switch (p) {
     case BankParam:
-      return toIndex((SD2Bank)value);
+      return toIndex((SoXXLBank)value);
     case ModAssign: case PitchAssign:
       switch ((WheelAssignableController)value) {
         case Modulation: return 1;
@@ -892,10 +892,10 @@ const char * toString(SwitchAssignableController c) {
   }
 }
 
-void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
+void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
   switch (p) {
     case BankParam: 
-      return display(line2, "Sound bank:",toString((SD2Bank)value));
+      return display(line2, "Sound bank:",toString((SoXXLBank)value));
     case ProgNoParam: 
       return display(line2, "Program:", toString(bank, value));
     case TransposeParam:
@@ -934,6 +934,7 @@ void displaySoundParameter(SoundParameter p, byte value, SD2Bank bank) {
  * Sends all global MIDI settings: SD2 bass boost gain+frequency, ...
  */
 void sendGlobals() {
+  /*
   SD2Message msg = bassBoostMsg(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
   midi3.sendSysEx(msg.length, msg.buff, true);
   for (int i = 0; i < n_SD2_parts; i++) {
@@ -945,11 +946,12 @@ void sendGlobals() {
     midi3.sendSysEx(msg.length, msg.buff, true);
     msg = filtervOffsetMsg(i, globalSettings.SD2_filter_velo_offset);
     midi3.sendSysEx(msg.length, msg.buff, true);
-  }  
+  } 
+  */ 
 }
 
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
-  SD2Message msg;
+  SoXXLMessage msg;
   switch (p) {
     case BankParam: return midi3.sendControlChange(midi::BankSelect, (midi::DataByte)value, channel);
     case ProgNoParam: return midi3.sendProgramChange(value, channel);
@@ -959,21 +961,16 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       return;
     case VolumeParam: return midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
     case PanParam: return midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
-    case ReverbParam: return midi3.sendControlChange(0x5b, value, channel); // SD-2, non-standard controller
-    case EffectsParam: return midi3.sendControlChange(0x5d, value, channel); // SD-2, non-standard controller
-    case CutoffParam:
-      msg = toNRPNMsg(TVFCutoff, channel - 1, value);
-      return midi3.sendSysEx(msg.length, msg.buff, true);
-    case ResonanceParam:    
-      msg = toNRPNMsg(TVFResonance, channel - 1, value);
-      return midi3.sendSysEx(msg.length, msg.buff, true);
-    case ReleaseTimeParam:
-      msg = toNRPNMsg(EnvReleaseTime, channel - 1, value);
-      return midi3.sendSysEx(msg.length, msg.buff, true);
+    case ReverbParam: return midi3.sendControlChange(0x5b, value, channel); 
+    case EffectsParam: return midi3.sendControlChange(0x5d, value, channel);
+    case CutoffParam: return  midi3.sendControlChange(midi::SoundController5, value, channel);
+    case ResonanceParam: return midi3.sendControlChange(midi::SoundController2, value, channel);   
+    case ReleaseTimeParam: return midi3.sendControlChange(midi::SoundController3, value, channel);
   }
 }
 
 void setParamValuePointer(GlobalParameter p) {
+  /*
   switch (p) {
     case BassBoostParam:
       param_value = &globalSettings.SD2_bass_boost;
@@ -994,6 +991,7 @@ void setParamValuePointer(GlobalParameter p) {
       param_value = &globalSettings.SD2_filter_velo_offset;
       break;
   }
+  */
 }
 
 void setParamValuePointer(CommonParameter p) {
@@ -1057,6 +1055,7 @@ void setParamValuePointer(SoundParameter p) {
 void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
   mini = 0;
   range = MIDI_CONTROLLER_MAX + 1;
+  /*
   switch (p) {
     case BassBoostParam:
       range = max_boost_gain + 1;
@@ -1065,6 +1064,7 @@ void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
       range = max_boost_freq + 1;
       break;
   }
+  */
   maxi = mini + range - 1;
 }
 
@@ -1073,7 +1073,7 @@ void getMinMaxRange(SoundParameter p, int & mini, int & maxi, int & range) {
   range = MIDI_CONTROLLER_MAX + 1; 
   switch (p) {
     case BankParam:
-      range = n_SD2_banks;
+      range = n_SoXXL_banks;
       break;
     case ModAssign:
       range = n_wheel_assignable_ctrls - 1; // without pitch bend
@@ -1486,9 +1486,9 @@ void handlePedal(int pedal, boolean on) {
     case 9:
       // in sound mode cycle banks
       if (state == playingSound && on) {
-        SD2_current_bank = toSD2Bank(toIndex(SD2_current_bank) + 1);
-        sendSound(SD2_current_bank, program_number, sound_channel);
-        displaySound(SD2_current_bank, program_number, false);
+        current_bank = toSoXXLBank(toIndex(current_bank) + 1);
+        sendSound(current_bank, program_number, sound_channel);
+        displaySound(current_bank, program_number, false);
       }
       break;
     case 10:
@@ -1571,8 +1571,8 @@ void handlePedal(int pedal, boolean on) {
             } 
             else {
               program_number = max(0, min(MIDI_CONTROLLER_MAX, program_number + change_preset_or_sound_by));
-              sendSound(SD2_current_bank, program_number, sound_channel);
-              displaySound(SD2_current_bank, program_number, false);
+              sendSound(current_bank, program_number, sound_channel);
+              displaySound(current_bank, program_number, false);
             }
           }
       }

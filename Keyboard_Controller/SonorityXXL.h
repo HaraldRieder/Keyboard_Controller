@@ -83,7 +83,7 @@ SoXXLBank toSoXXLBank(int index) {
     case 20: return Synth;
     case 21: return FXnPerc;
   }
-  return GM;
+  return GeneralMIDI;
 }
 
 int toIndex(SoXXLBank bank) {
@@ -1359,5 +1359,78 @@ const char * toString(SoXXLBank bank, byte program_number) {
       return "bank?"; // unknown bank
   }
   return name_buffer;
+}
+
+struct SoXXLMessage {
+  byte buff[12];
+  int length;
+};
+
+SoXXLMessage SoXXL_msg;
+
+enum SoXXLNRPN {
+  PitchBendSensitivity, FineTuning, CoarseTuning
+};
+
+SoXXLMessage toNRPNMsg(SoXXLNRPN nrpn, byte channel, byte value) {
+  SoXXL_msg.length = 7;
+  SoXXL_msg.buff[0] = 0xB0 | channel;
+  SoXXL_msg.buff[1] = 0x65;
+  SoXXL_msg.buff[2] = 0x00;
+  SoXXL_msg.buff[3] = 0x64;
+  SoXXL_msg.buff[5] = 0x06;
+  SoXXL_msg.buff[6] = value;
+  switch (nrpn) {
+    case PitchBendSensitivity: 
+      SoXXL_msg.buff[4] = 0x00; 
+      break;
+    case FineTuning: 
+      SoXXL_msg.buff[4] = 0x01; 
+      break;
+    case CoarseTuning: 
+    default:
+      SoXXL_msg.buff[4] = 0x02; 
+      break;
+  }
+  return SoXXL_msg;
+}
+
+/**
+ * Master volume 0..127.
+ */
+SoXXLMessage toVolumeMsg(byte value) {
+  SoXXL_msg.length = 8;
+  SoXXL_msg.buff[0] = 0xf0;
+  SoXXL_msg.buff[1] = 0x7f;
+  SoXXL_msg.buff[2] = 0x7f;
+  SoXXL_msg.buff[3] = 0x01;
+  SoXXL_msg.buff[4] = 0x01;
+  SoXXL_msg.buff[5] = 0x00;
+  SoXXL_msg.buff[6] = value;
+  SoXXL_msg.buff[7] = 0xf7;
+  return SoXXL_msg;
+}
+
+SoXXLMessage toReverbTypeMsg(byte value) {
+  SoXXL_msg.length = 11;
+  SoXXL_msg.buff[0] = 0xf0;
+  SoXXL_msg.buff[1] = 0x41;
+  SoXXL_msg.buff[2] = 0x00;
+  SoXXL_msg.buff[3] = 0x42;
+  SoXXL_msg.buff[4] = 0x12;
+  SoXXL_msg.buff[5] = 0x40;
+  SoXXL_msg.buff[6] = 0x7f;
+  SoXXL_msg.buff[7] = 0x7f;
+  SoXXL_msg.buff[8] = value;
+  SoXXL_msg.buff[9] = 0x00;
+  SoXXL_msg.buff[10] = 0xf7;
+  return SoXXL_msg;
+}
+
+SoXXLMessage toEffectTypeMsg(byte value) {
+  toReverbTypeMsg(value);
+  SoXXL_msg.buff[6] = 0x01;
+  SoXXL_msg.buff[7] = 0x38;
+  return SoXXL_msg;
 }
 

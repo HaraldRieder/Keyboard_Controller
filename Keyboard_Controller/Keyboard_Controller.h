@@ -44,6 +44,7 @@ void readGlobals() {
   byte *b = (byte*)&globalSettings;
   for (int i = 0; i < sizeof(GlobalSettings); i++)
     b[i] = EEPROM.read(GlobalSettingsAddress + i);
+  /*  
   if (globalSettings.SD2_bass_boost > max_boost_gain)
     globalSettings.SD2_bass_boost = 0;
   if (globalSettings.SD2_boost_freq > max_boost_freq)
@@ -56,6 +57,7 @@ void readGlobals() {
     globalSettings.SD2_filter_velo_slope = MIDI_CONTROLLER_MEAN;
   if (globalSettings.SD2_filter_velo_offset > MIDI_CONTROLLER_MAX)
     globalSettings.SD2_filter_velo_offset = MIDI_CONTROLLER_MEAN;
+  */  
 }
 
 /**
@@ -167,7 +169,7 @@ void savePreset(int presetNumber, const Preset & preset) {
 }
 
 void defaultSound(Sound & sound) {
-  sound.bank = BankA;
+  sound.bank = GeneralMIDI;
   sound.program_number = 0; // Grand Piano
   sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
   sound.volume = MIDI_CONTROLLER_MEAN;
@@ -243,9 +245,9 @@ enum Event {
   enterBtn, exitBtn, modWheel, pitchWheel, noteEvent, volumeKnob
 };
 
-void displaySound(SD2Bank bank, int program_number);
+void displaySound(SoXXLBank bank, int program_number);
 void displayPreset(const Preset & Preset);
-void sendSound(SD2Bank bank, midi::DataByte program_number, midi::Channel channel);
+void sendSound(SoXXLBank bank, midi::DataByte program_number, midi::Channel channel);
 void sendSound(const Sound & sound, midi::Channel channel);
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
 void process(Event event, int value);
