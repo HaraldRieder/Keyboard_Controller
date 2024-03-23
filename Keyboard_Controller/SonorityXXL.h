@@ -26,6 +26,36 @@ enum SoXXLBank {
   FXnPerc = 21
 };
 
+enum SoXXLReverbType {
+  HALL1 = 0,
+  HALL2 = 1,
+  ROOM1 = 2,
+  ROOM2 = 3,
+  ROOM3 = 4,
+  PLATE1 = 5,
+  PLATE2 = 6,
+  PLATE3 = 7,
+  CHORUS = 8,
+  FLANGE = 9,
+  DELAY1 = 10,
+  DELAY2 = 11,
+  CHORUS_ROOM1 = 12,
+  CHORUS_ROOM2 = 13,
+  VOCCANCEL = 14,
+  ROTARY_SPEAKER = 15
+};
+
+enum SoXXLEffectsType {
+  CHORUS1 = 0,
+  CHORUS2 = 1,
+  CHORUS3 = 2,
+  CHORUS4 = 3,
+  FEEDBACK = 4,
+  FLANGER = 5,
+  SHORT_DELAY = 6,
+  FB_DELAY = 7,
+};
+
 const int n_SoXXL_banks = 5;
 const int n_SoXXL_parts = 32; // General MIDI parts
 
@@ -1411,7 +1441,7 @@ SoXXLMessage toVolumeMsg(byte value) {
   return SoXXL_msg;
 }
 
-SoXXLMessage toReverbTypeMsg(byte value) {
+SoXXLMessage toReverbTypeMsg(byte type) {
   SoXXL_msg.length = 11;
   SoXXL_msg.buff[0] = 0xf0;
   SoXXL_msg.buff[1] = 0x41;
@@ -1421,16 +1451,25 @@ SoXXLMessage toReverbTypeMsg(byte value) {
   SoXXL_msg.buff[5] = 0x40;
   SoXXL_msg.buff[6] = 0x7f;
   SoXXL_msg.buff[7] = 0x7f;
-  SoXXL_msg.buff[8] = value;
+  SoXXL_msg.buff[8] = type;
   SoXXL_msg.buff[9] = 0x00;
   SoXXL_msg.buff[10] = 0xf7;
   return SoXXL_msg;
 }
 
-SoXXLMessage toEffectTypeMsg(byte value) {
-  toReverbTypeMsg(value);
+SoXXLMessage toEffectTypeMsg(byte type) {
+  SoXXL_msg.length = 11;
+  SoXXL_msg.buff[0] = 0xf0;
+  SoXXL_msg.buff[1] = 0x41;
+  SoXXL_msg.buff[2] = 0x00;
+  SoXXL_msg.buff[3] = 0x42;
+  SoXXL_msg.buff[4] = 0x12;
+  SoXXL_msg.buff[5] = 0x40;
   SoXXL_msg.buff[6] = 0x01;
   SoXXL_msg.buff[7] = 0x38;
+  SoXXL_msg.buff[8] = type;
+  SoXXL_msg.buff[9] = 0x00;
+  SoXXL_msg.buff[10] = 0xf7;
   return SoXXL_msg;
 }
 

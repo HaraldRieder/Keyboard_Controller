@@ -57,7 +57,7 @@ Sound * currentPresetSounds[n_sounds_per_preset] =
 
 const midi::Channel sound_channel = 1;
 // right ch. = left ch. + 1, compatible to Matix_to_MIDI project
-const midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3; 
+const midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3, layer_channel = 4; 
 
 /*--------------------------------- setup and main loop ---------------------------------*/
 
@@ -70,6 +70,7 @@ void readPresetDefaultChannels(int presetNumber, Preset & preset) {
   preset.left.channel = left_channel;
   preset.right.channel = right_channel;
   preset.foot.channel = foot_channel;
+  preset.layer.channel = layer_channel;
 }
 
 void setup() {
@@ -460,6 +461,13 @@ void process(Event event, int value) {
               int_param_value = map_from_byte(sound_parameter, *param_value);
               displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               break;
+            case LayerParameters:
+              state = editPresetSound;
+              editedSound = &currentPreset.layer;
+              setParamValuePointer(sound_parameter);
+              int_param_value = map_from_byte(sound_parameter, *param_value);
+              displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
+              break;
           }
           displayParameterSet(line1, currentPreset, parameter_set);
           return;
@@ -716,13 +724,21 @@ void sendSound(const Sound & sound, midi::Channel channel) {
     return; // dirty hack for external Juno-D
   sendSound((SoXXLBank)sound.bank, sound.program_number, channel);
   sendSoundParameter(TransposeParam, sound.transpose, channel);
+  sendSoundParameter(FinetuneParam, sound.finetune, channel);
   sendSoundParameter(VolumeParam, sound.volume, channel);
   sendSoundParameter(PanParam, sound.pan, channel);
-  sendSoundParameter(ReverbParam, sound.reverb_send, channel);
-  sendSoundParameter(EffectsParam, sound.effects_send, channel);
+  sendSoundParameter(ReverbTypeParam, sound.reverb_type, channel);
+  sendSoundParameter(ReverbSendParam, sound.reverb_send, channel);
+  sendSoundParameter(EffectsTypeParam, sound.effects_type, channel);
+  sendSoundParameter(EffectsSendParam, sound.effects_send, channel);
   sendSoundParameter(CutoffParam, sound.cutoff_frequency, channel);
   sendSoundParameter(ResonanceParam, sound.resonance, channel);
+  sendSoundParameter(AttackTimeParam, sound.attack_time, channel);
+  sendSoundParameter(DecayTimeParam, sound.decay_time, channel);
   sendSoundParameter(ReleaseTimeParam, sound.release_time, channel);
+  sendSoundParameter(VibratoRateParam, sound.vibrato_rate, channel);
+  sendSoundParameter(VibratoRateParam, sound.vibrato_depth, channel);
+  sendSoundParameter(VibratoRateParam, sound.vibrato_delay, channel);
 }
 
 /**
@@ -892,6 +908,42 @@ const char * toString(SwitchAssignableController c) {
   }
 }
 
+const char * toString(SoXXLReverbType t) {
+  switch (t) {
+    case HALL1: return "Hall 1";
+    case HALL2: return "Hall 2";
+    case ROOM1: return "Room 1";
+    case ROOM2: return "Room 2";
+    case ROOM3: return "Room 3";
+    case PLATE1: return "Plate 1";
+    case PLATE2: return "Plate 2";
+    case PLATE3: return "Plate 3";
+    case CHORUS: return "Chorus";
+    case FLANGE: return "Flanger";
+    case DELAY1: return "Delay 1";
+    case DELAY2: return "Delay 2";
+    case CHORUS_ROOM1: return "Chr+Room 1";
+    case CHORUS_ROOM2: return "Chr+Room 2";
+    case VOCCANCEL: return "Voc.Cancel";
+    case ROTARY_SPEAKER: return "Rotary";
+  }
+  return "?";
+}
+
+const char * toString(SoXXLEffectsType t) {
+  switch (t) {
+    case CHORUS1: return "Chorus 1";
+    case CHORUS2: return "Chorus 2";
+    case CHORUS3: return "Chorus 3";
+    case CHORUS4: return "Chorus 4";
+    case FEEDBACK: return "Feedback";
+    case FLANGER: return "Flanger";
+    case SHORT_DELAY: return "Shrt.Delay";
+    case FB_DELAY: return "FBck.Delay";
+  }
+  return "?";
+}
+
 void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
   switch (p) {
     case BankParam: 
@@ -900,6 +952,8 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
       return display(line2, "Program:", toString(bank, value));
     case TransposeParam:
       return display(line2, "Transpose:", (int)value - MIDI_CONTROLLER_MEAN);
+    case FinetuneParam:
+      return display(line2, "Fine tune:", (int)value - MIDI_CONTROLLER_MEAN);
     case VolumeParam:
       return display(line2, "Volume:", value);
     case PanParam:
@@ -909,16 +963,30 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
       if (value > MIDI_CONTROLLER_MEAN)
         return display(line2right, ">>>", value - MIDI_CONTROLLER_MEAN);
       return display(line2right, MIDI_CONTROLLER_MEAN - value, "<<<");
-    case ReverbParam:
+    case ReverbTypeParam:
+      return display(line2, "Reverb type:", toString((SoXXLReverbType)value));
+    case ReverbSendParam:
       return display(line2, "Reverb send:", value);
-    case EffectsParam:    
+    case EffectsTypeParam:    
+      return display(line2, "FX type:", toString((SoXXLEffectsType)value));
+    case EffectsSendParam:    
       return display(line2, "FX send:", value);
     case CutoffParam:
       return display(line2, "Cutoff frequ.:", value);
     case ResonanceParam:    
       return display(line2, "Resonance:", value);
+    case AttackTimeParam:    
+      return display(line2, "Attack:", value);
+    case DecayTimeParam:    
+      return display(line2, "Decay:", value);
     case ReleaseTimeParam:    
       return display(line2, "Release:", value);
+    case VibratoRateParam:    
+      return display(line2, "Vibrato rate:", value);
+    case VibratoDepthParam:    
+      return display(line2, "Vibrato depth:", value);
+    case VibratoDelayParam:    
+      return display(line2, "Vibrato delay:", value);
     case ModAssign:
       return display(line2, "Mod.wheel>", toString((WheelAssignableController)value, false));
     case PitchAssign:
@@ -959,13 +1027,30 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       msg = toNRPNMsg(CoarseTuning, channel - 1, value);
       midi3.sendSysEx(msg.length, msg.buff, true);
       return;
+    case FinetuneParam:
+      msg = toNRPNMsg(FineTuning, channel - 1, value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
+      return;
     case VolumeParam: return midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
     case PanParam: return midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
-    case ReverbParam: return midi3.sendControlChange(0x5b, value, channel); 
-    case EffectsParam: return midi3.sendControlChange(0x5d, value, channel);
+    case ReverbTypeParam:
+      msg = toReverbTypeMsg(value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
+      return;
+    case ReverbSendParam: return midi3.sendControlChange(0x5b, value, channel); 
+    case EffectsTypeParam:
+      msg = toEffectTypeMsg(value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
+      return;
+    case EffectsSendParam: return midi3.sendControlChange(0x5d, value, channel);
     case CutoffParam: return  midi3.sendControlChange(midi::SoundController5, value, channel);
     case ResonanceParam: return midi3.sendControlChange(midi::SoundController2, value, channel);   
+    case AttackTimeParam: return midi3.sendControlChange(midi::SoundController4, value, channel);
+    case DecayTimeParam: return midi3.sendControlChange(midi::SoundController6, value, channel);
     case ReleaseTimeParam: return midi3.sendControlChange(midi::SoundController3, value, channel);
+    case VibratoRateParam: return midi3.sendControlChange(midi::SoundController7, value, channel);
+    case VibratoDepthParam: return midi3.sendControlChange(midi::SoundController8, value, channel);
+    case VibratoDelayParam: return midi3.sendControlChange(midi::SoundController9, value, channel);
   }
 }
 
@@ -1016,16 +1101,25 @@ void setParamValuePointer(SoundParameter p) {
     case TransposeParam:
       param_value = &(editedSound->transpose);
       break;
+    case FinetuneParam:
+      param_value = &(editedSound->finetune);
+      break;
     case VolumeParam:
       param_value = &(editedSound->volume);
       break;
     case PanParam:
       param_value = &(editedSound->pan);
       break;
-    case ReverbParam:
+    case ReverbTypeParam:
+      param_value = &(editedSound->reverb_type);
+      break;
+    case ReverbSendParam:
       param_value = &(editedSound->reverb_send);
       break;
-    case EffectsParam:
+    case EffectsTypeParam:
+      param_value = &(editedSound->effects_type);
+      break;
+    case EffectsSendParam:
       param_value = &(editedSound->effects_send);
       break;
     case CutoffParam:
@@ -1034,8 +1128,23 @@ void setParamValuePointer(SoundParameter p) {
     case ResonanceParam:
       param_value = &(editedSound->resonance);
       break;
+    case AttackTimeParam:
+      param_value = &(editedSound->attack_time);
+      break;
+    case DecayTimeParam:
+      param_value = &(editedSound->decay_time);
+      break;
     case ReleaseTimeParam:
       param_value = &(editedSound->release_time);
+      break;
+    case VibratoRateParam:
+      param_value = &(editedSound->vibrato_rate);
+      break;
+    case VibratoDepthParam:
+      param_value = &(editedSound->vibrato_depth);
+      break;
+    case VibratoDelayParam:
+      param_value = &(editedSound->vibrato_delay);
       break;
     case ModAssign:
       param_value = &(editedSound->mod_wheel_ctrl_no);

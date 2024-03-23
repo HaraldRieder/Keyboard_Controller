@@ -15,7 +15,7 @@ const int GlobalSettingsAddress = 0;
 const int n_global_settings = 6;
 
 enum GlobalParameter {
-  BassBoostParam, BoostFreqParam, 
+  BassBoostParam, BoostFreqParam, // TODO still SD2 params
   VelocitySlopeParam, VelocityOffsetParam, 
   FilterVelocitySlopeParam, FilterVelocityOffsetParam
 };
@@ -105,19 +105,28 @@ public:
   byte bank;
   byte program_number;
   byte transpose;
+  byte finetune;
   byte volume;
   byte pan;
+  byte reverb_type;
   byte reverb_send;
+  byte effects_type;
   byte effects_send;
+  byte cutoff_frequency;
+  byte resonance;
+  byte attack_time;
+  byte decay_time;
+  byte release_time;
+  byte vibrato_rate;
+  byte vibrato_depth;
+  byte vibrato_delay;
+  byte reserved1;
+  byte reserved2;
+  byte reserved3;
   byte mod_wheel_ctrl_no;
   byte pitch_wheel_ctrl_no;
   byte ext_switch_1_ctrl_no;
   byte ext_switch_2_ctrl_no;
-  byte cutoff_frequency;
-  byte resonance;
-  byte release_time;
-  byte reserved2;
-  byte reserved3;
   byte channel; // not [yet] adjustable but comfortable here
 };
 
@@ -134,7 +143,7 @@ public:
   byte reserved7;
   byte reserved8;
   byte reserved9;
-  Sound right, left, foot;
+  Sound layer, right, left, foot;
 };
 
 void defaultPreset(Preset & preset);
@@ -172,17 +181,23 @@ void defaultSound(Sound & sound) {
   sound.bank = GeneralMIDI;
   sound.program_number = 0; // Grand Piano
   sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
+  sound.finetune = MIDI_CONTROLLER_MEAN; // 0 cent
   sound.volume = MIDI_CONTROLLER_MEAN;
   sound.pan = MIDI_CONTROLLER_MEAN;
   sound.reverb_send = MIDI_CONTROLLER_MEAN; // do not change reverb send level
   sound.effects_send = MIDI_CONTROLLER_MEAN; // do not change effects send level
+  sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
+  sound.resonance = MIDI_CONTROLLER_MEAN;
+  sound.attack_time =  MIDI_CONTROLLER_MEAN;
+  sound.decay_time =  MIDI_CONTROLLER_MEAN;
+  sound.release_time = MIDI_CONTROLLER_MEAN;
+  sound.vibrato_rate = MIDI_CONTROLLER_MEAN;
+  sound.vibrato_depth = 0;
+  sound.vibrato_delay = MIDI_CONTROLLER_MEAN;
   sound.mod_wheel_ctrl_no = NoWheel; 
   sound.pitch_wheel_ctrl_no = NoWheel; 
   sound.ext_switch_1_ctrl_no = NoSwitch; 
   sound.ext_switch_2_ctrl_no = NoSwitch; 
-  sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
-  sound.resonance = MIDI_CONTROLLER_MEAN;
-  sound.release_time = MIDI_CONTROLLER_MEAN;
 }
 
 void defaultPreset(Preset & preset) {
@@ -202,14 +217,22 @@ void defaultPreset(Preset & preset) {
   preset.right.pitch_wheel_ctrl_no = Pitch;
   preset.right.ext_switch_1_ctrl_no = Sustain; 
   preset.right.ext_switch_2_ctrl_no = Sostenuto; 
+
+  defaultSound(preset.layer); // optional right layer sound
+  preset.layer.program_number = 48; // String Ensemble
+  preset.layer.volume = 0;
+  preset.layer.mod_wheel_ctrl_no = Modulation; 
+  preset.layer.pitch_wheel_ctrl_no = Pitch;
+  preset.layer.ext_switch_1_ctrl_no = Sustain; 
+  preset.layer.ext_switch_2_ctrl_no = Sostenuto; 
 }
 
 /*--------------------------------- state event machine ---------------------------------*/
 
-const int n_parameter_sets = 4;
+const int n_parameter_sets = 5;
 
 enum ParameterSet {
-  CommonParameters, FootParameters, LeftParameters, RightParameters  
+  CommonParameters, FootParameters, LeftParameters, RightParameters, LayerParameters  
 };
 
 const int n_common_parameters = 2;
@@ -222,9 +245,12 @@ enum CommonParameter {
 const int n_sound_parameters = 14;
 
 enum SoundParameter {
-  BankParam, ProgNoParam, TransposeParam, VolumeParam, PanParam, 
-  ReverbParam, EffectsParam, CutoffParam, ResonanceParam,
-  ModAssign, PitchAssign, Switch1Assign, Switch2Assign, ReleaseTimeParam
+  BankParam, ProgNoParam, TransposeParam, FinetuneParam, VolumeParam, PanParam, 
+  ReverbSendParam, ReverbTypeParam, EffectsSendParam, EffectsTypeParam, 
+  CutoffParam, ResonanceParam,
+  AttackTimeParam, DecayTimeParam, ReleaseTimeParam, 
+  VibratoRateParam, VibratoDepthParam, VibratoDelayParam,
+  ModAssign, PitchAssign, Switch1Assign, Switch2Assign
 };
 
 enum State {
