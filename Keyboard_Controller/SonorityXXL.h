@@ -478,8 +478,6 @@ PROGMEM const char Bank4Names[][MAX_NAME_LEN+1] = {
 /*72*/ "Organ Click","","","","","","","",
 "","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","","","",
-"","","","","","","","","","","","","","","","",
-"","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","","",""
 };
 // [Perc. Tuned Instruments]
@@ -718,16 +716,22 @@ PROGMEM const char Bank9Names[][MAX_NAME_LEN+1] = {
 /*39*/ "Va.Ens.pizzict",
 /*40*/ "CeE. vel s arc",
 /*41*/ "CeE.velo split",
+/*42*/ "<- ->",
 /*43*/ "Cello Ens.slow",
+/*44*/ "<- ->",
 /*45*/ "C.Ens. detache",
 /*46*/ "C.Ens. legato",
+/*47*/ "<- ->",
 /*48*/ "C.Ens. tremolo",
 /*49*/ "C.Ens. pizzict",
 /*50*/ "CBs. vel s arc",
 /*51*/ "CBs.velo split",
+/*52*/ "<- ->",
 /*53*/ "Contra Bs.slow",
+/*54*/ "<- ->",
 /*55*/ "CBs.E. detache",
 /*56*/ "CBs.E. legato",
+/*57*/ "<- ->",
 /*58*/ "CBs.E. tremolo",
 /*59*/ "CBs.E. pizzict",
 "-> 125","","","",
@@ -737,7 +741,7 @@ PROGMEM const char Bank9Names[][MAX_NAME_LEN+1] = {
 "","","","","","","","","","","","","<- 59",
 /*125*/ "StrEns.1 detch",
 /*126*/ "StrEns.2 detch",
-/*127*/ "",
+/*127*/ ""
 };
 // [Solo Strings]
 PROGMEM const char Bank10Names[][MAX_NAME_LEN+1] = {
@@ -939,7 +943,7 @@ PROGMEM const char Bank14Names[][MAX_NAME_LEN+1] = {
 "","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","<- 23",
 /*126*/ "HornEns. riff",
-/*127*/ "",
+/*127*/ ""
 };
 // [Saxophon]
 PROGMEM const char Bank15Names[][MAX_NAME_LEN+1] = {
@@ -981,7 +985,7 @@ PROGMEM const char Bank15Names[][MAX_NAME_LEN+1] = {
 "","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","<- 29",
 /*126*/ "Sax Breath",
-/*127*/ "",
+/*127*/ ""
 };
 // [Winds]
 PROGMEM const char Bank16Names[][MAX_NAME_LEN+1] = {
@@ -1259,7 +1263,7 @@ PROGMEM const char Bank20Names[][MAX_NAME_LEN+1] = {
 /*124*/ "Moog Bass ENV",
 /*125*/ "X Bass 1",
 /*126*/ "X Bass 2",
-/*127*/ "",
+/*127*/ ""
 };
 // [Specials]
 PROGMEM const char Bank21Names[][MAX_NAME_LEN+1] = {
