@@ -94,7 +94,7 @@ enum WheelAssignableController {
 };
 
 const int n_presets = 60; // 54 bytes/preset * 60 presets = 3240 bytes EEPROM occupied by presets
-const int n_sounds_per_preset = 3; // foot + left hand + right hand
+const int n_sounds_per_preset = 4; // foot + left hand + right hand [+ right layered]
 
 // start address of preset storage area in EEPROM
 const int PresetsAddress = 40;
@@ -130,7 +130,8 @@ public:
   byte channel; // not [yet] adjustable but comfortable here
 };
 
-const long magic = 0x20031fe1;
+// change magic value  to force init of each preset
+const long magic = 0x2e031fe2;
 
 enum PedalMode { BassPedal, ControllerPedal };
 
@@ -182,12 +183,14 @@ void defaultSound(Sound & sound) {
   sound.program_number = 0; // Grand Piano
   sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
   sound.finetune = MIDI_CONTROLLER_MEAN; // 0 cent
-  sound.volume = MIDI_CONTROLLER_MEAN;
+  sound.volume = 100;
   sound.pan = MIDI_CONTROLLER_MEAN;
-  sound.reverb_send = MIDI_CONTROLLER_MEAN; // do not change reverb send level
-  sound.effects_send = MIDI_CONTROLLER_MEAN; // do not change effects send level
+  sound.reverb_send = 15;
+  sound.reverb_type = HALL1;
+  sound.effects_send = 0;
+  sound.effects_type = CHORUS1;
   sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
-  sound.resonance = MIDI_CONTROLLER_MEAN;
+  sound.resonance = 0;
   sound.attack_time =  MIDI_CONTROLLER_MEAN;
   sound.decay_time =  MIDI_CONTROLLER_MEAN;
   sound.release_time = MIDI_CONTROLLER_MEAN;
@@ -209,8 +212,10 @@ void defaultPreset(Preset & preset) {
   preset.foot.program_number = 32; // Jazz Bass 
 
   defaultSound(preset.left);
-  preset.left.program_number = 26; // Jazz Guitar
+  preset.left.mod_wheel_ctrl_no = Modulation; 
+  preset.left.pitch_wheel_ctrl_no = Pitch;
   preset.left.ext_switch_1_ctrl_no = Sustain; 
+  preset.left.ext_switch_2_ctrl_no = Sostenuto; 
 
   defaultSound(preset.right);
   preset.right.mod_wheel_ctrl_no = Modulation; 
@@ -242,7 +247,7 @@ enum CommonParameter {
   PedalModeParam
 };
 
-const int n_sound_parameters = 14;
+const int n_sound_parameters = 22;
 
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, FinetuneParam, VolumeParam, PanParam, 

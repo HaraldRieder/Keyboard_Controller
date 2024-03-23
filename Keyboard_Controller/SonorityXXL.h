@@ -1477,3 +1477,13 @@ SoXXLMessage toEffectTypeMsg(byte type) {
   return SoXXL_msg;
 }
 
+SoXXLMessage gmReset() {
+  SoXXL_msg.length = 6;
+  SoXXL_msg.buff[0] = 0xf0;
+  SoXXL_msg.buff[1] = 0x7e;
+  SoXXL_msg.buff[2] = 0x7f;
+  SoXXL_msg.buff[3] = 0x09;
+  SoXXL_msg.buff[4] = 0x01;
+  SoXXL_msg.buff[5] = 0xf7;
+  return SoXXL_msg;
+}

@@ -53,7 +53,7 @@ const int int_switch_pin = A3;
 int preset_number = 0;
 Preset currentPreset;
 Sound * currentPresetSounds[n_sounds_per_preset] = 
-  { &currentPreset.right, &currentPreset.left, &currentPreset.foot };
+  { &currentPreset.right, &currentPreset.left, &currentPreset.foot, &currentPreset.layer };
 
 const midi::Channel sound_channel = 1;
 // right ch. = left ch. + 1, compatible to Matix_to_MIDI project
@@ -271,6 +271,8 @@ void process(Event event, int value) {
       switch (event) {
         case exitBtn:
           state = playingSound;
+          SoXXLMessage msg = gmReset();
+          midi3.sendSysEx(msg.length, msg.buff, true);
           sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
@@ -564,6 +566,8 @@ void process(Event event, int value) {
                 ch = right_channel;
               else if (editedSound == &currentPreset.foot)
                 ch = foot_channel;
+              else if (editedSound == &currentPreset.layer)
+                ch = layer_channel;
               sendSoundParameter(sound_parameter, *param_value, ch);
             }
           }
@@ -748,8 +752,10 @@ void sendSound(const Sound & sound, midi::Channel channel) {
 void sendVolumes(const Preset & preset, int value) {
   if (preset.pedal_mode == BassPedal) 
     sendSoundParameter(VolumeParam, value*preset.foot.volume/MIDI_CONTROLLER_MAX, foot_channel);
-  if (preset.split_point != invalid)
+  if (preset.split_point != invalid) {
     sendSoundParameter(VolumeParam, value*preset.right.volume/MIDI_CONTROLLER_MAX, right_channel);
+    sendSoundParameter(VolumeParam, value*preset.layer.volume/MIDI_CONTROLLER_MAX, layer_channel);
+  }
   sendSoundParameter(VolumeParam, value*preset.left.volume/MIDI_CONTROLLER_MAX, left_channel);   
 }
 
@@ -777,8 +783,10 @@ void sendExpression(const Preset & preset) {
 void sendPreset(const Preset & preset) {
   if (preset.pedal_mode == BassPedal)
     sendSound(preset.foot, foot_channel); 
-  if (preset.split_point != invalid)
+  if (preset.split_point != invalid) {
     sendSound(preset.right, right_channel); 
+    sendSound(preset.layer, layer_channel);
+  }
   sendSound(preset.left, left_channel);
   sendVolumes(preset, volume_val);
   sendExpression(preset);
@@ -1451,8 +1459,10 @@ void handleModWheel(unsigned int inval) {
 void externalControl(int value) {
   if (currentPreset.split_point == invalid)
     midi3.sendControlChange(midi::ExpressionController, value, left_channel);
-  else
+  else {
     midi3.sendControlChange(midi::ExpressionController, value, right_channel);
+    midi3.sendControlChange(midi::ExpressionController, value, layer_channel);
+  }
 }
 
 /*--------------------------------- note  on / note off ---------------------------------*/
@@ -1481,7 +1491,13 @@ void handleNoteOn(byte channel, byte note, byte velocity)
           }
         } 
         else {
-          midi3.sendNoteOn(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+          if (note > currentPreset.split_point) {
+            midi3.sendNoteOn(note, velocity, right_channel);
+            midi3.sendNoteOn(note, velocity, layer_channel);
+          }
+          else {
+            midi3.sendNoteOn(note, velocity, left_channel);
+          }
         }
       }
       // handle note on with velocity 0 like note off
@@ -1515,7 +1531,13 @@ void handleNoteOff(byte channel, byte note, byte velocity)
           }
         } 
         else {
-          midi3.sendNoteOff(note, velocity, note > currentPreset.split_point ? right_channel : left_channel);
+          if (note > currentPreset.split_point) {
+            midi3.sendNoteOff(note, velocity, right_channel);
+            midi3.sendNoteOff(note, velocity, layer_channel);
+          } 
+          else {
+            midi3.sendNoteOff(note, velocity, left_channel);
+          }
         }
       }
       if (state != playingPreset)
