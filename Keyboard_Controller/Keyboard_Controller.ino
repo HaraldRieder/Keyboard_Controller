@@ -55,7 +55,7 @@ Preset currentPreset;
 Sound * currentPresetSounds[n_sounds_per_preset] = 
   { &currentPreset.right, &currentPreset.left, &currentPreset.foot, &currentPreset.layer };
 
-const midi::Channel sound_channel = 1;
+const midi::Channel sound_channel = 15;
 // right ch. = left ch. + 1, compatible to Matix_to_MIDI project
 const midi::Channel right_channel = 2, left_channel = 1, foot_channel = 3, layer_channel = 4; 
 
@@ -121,7 +121,7 @@ void setup() {
   TIMSK3 = 0;
   TIMSK4 = 0;
   TIMSK5 = 0;
-  Serial.println("ready");
+  Serial.println("Demian ready");
 }
 
 /* noise supression by hysteresis */
@@ -264,15 +264,16 @@ void process(Event event, int value) {
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
   static int int_param_value;
-
+  //SoXXLMessage msg;
   switch (state) {
 
     case playingPreset:
       switch (event) {
         case exitBtn:
           state = playingSound;
-          SoXXLMessage msg = gmReset();
-          midi3.sendSysEx(msg.length, msg.buff, true);
+          sendGMReset();
+          sendCommonParameter(FX1TypeParam, HALL1);
+          sendCommonParameter(FX2TypeParam, CHORUS1);
           sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
@@ -292,11 +293,16 @@ void process(Event event, int value) {
     case playingSound: 
       switch (event) {
         case exitBtn:
+        /* no global for V3 Sound module          
           state = editGlobals;
           display(line1, "Global Settings");
           setParamValuePointer(global_parameter);
           int_param_value = map_from_byte(global_parameter, *param_value);
           displayGlobalParameter(global_parameter, *param_value);
+          return;
+        */
+          state = showInfo;
+          displayInfo();
           return;
         case enterBtn:
           state = selectSound;
@@ -311,7 +317,7 @@ void process(Event event, int value) {
       }
       return;
       
-    case editGlobals:
+    /*case editGlobals:
       switch (event) {
         case exitBtn:
           saveGlobals();
@@ -341,7 +347,7 @@ void process(Event event, int value) {
           return;
       }
       return;
-      
+    */  
     case showInfo:
       switch (event) {
         case exitBtn:
@@ -518,6 +524,7 @@ void process(Event event, int value) {
             if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
               *param_value = map_to_byte(common_parameter, int_param_value);
               displayCommonParameter(common_parameter, *param_value);
+              sendCommonParameter(common_parameter, *param_value);
             }
           }
           return;
@@ -731,9 +738,7 @@ void sendSound(const Sound & sound, midi::Channel channel) {
   sendSoundParameter(FinetuneParam, sound.finetune, channel);
   sendSoundParameter(VolumeParam, sound.volume, channel);
   sendSoundParameter(PanParam, sound.pan, channel);
-  sendSoundParameter(ReverbTypeParam, sound.reverb_type, channel);
   sendSoundParameter(ReverbSendParam, sound.reverb_send, channel);
-  sendSoundParameter(EffectsTypeParam, sound.effects_type, channel);
   sendSoundParameter(EffectsSendParam, sound.effects_send, channel);
   sendSoundParameter(CutoffParam, sound.cutoff_frequency, channel);
   sendSoundParameter(ResonanceParam, sound.resonance, channel);
@@ -781,6 +786,8 @@ void sendExpression(const Preset & preset) {
  * Sends all sound settings of the given preset to MIDI.
  */
 void sendPreset(const Preset & preset) {
+  sendCommonParameter(FX1TypeParam, preset.fx1_type);
+  sendCommonParameter(FX2TypeParam, preset.fx2_type);
   if (preset.pedal_mode == BassPedal)
     sendSound(preset.foot, foot_channel); 
   if (preset.split_point != invalid) {
@@ -817,6 +824,14 @@ void displayCommonParameter(CommonParameter p, byte value) {
       display(line2left, "Pdl.mode:");
       display(line2right, value == 0 ? "Bass" : "Controller");
       break;
+    case FX1TypeParam:
+      display(line2left, "FX1 type:");
+      display(line2right, toString((SoXXLReverbType)value));
+      break;
+    case FX2TypeParam:
+      display(line2left, "FX2 type:");
+      display(line2right, toString((SoXXLEffectsType)value));
+      break;
   }
   if (value == invalid)
     display(line2right, NONE);
@@ -831,8 +846,11 @@ int map_from_byte(GlobalParameter p, byte value) {
 }
 
 byte map_to_byte(CommonParameter p, int value) {
-   if (p == PedalModeParam)
-     value = min(1,max(0,value));
+   switch (p) {
+     case PedalModeParam: value = min(1,max(0,value)); break;
+     case FX1TypeParam: value =  min(n_SoXXL_reverbs,max(0,value)); break;
+     case FX2TypeParam: value =  min(n_SoXXL_effects,max(0,value)); break;
+   } 
    return (byte)value;
 }
 
@@ -947,7 +965,7 @@ const char * toString(SoXXLEffectsType t) {
     case FEEDBACK: return "Feedback";
     case FLANGER: return "Flanger";
     case SHORT_DELAY: return "Shrt.Delay";
-    case FB_DELAY: return "FBck.Delay";
+    case FB_DELAY: return "Fbck.Delay";
   }
   return "?";
 }
@@ -971,12 +989,8 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
       if (value > MIDI_CONTROLLER_MEAN)
         return display(line2right, ">>>", value - MIDI_CONTROLLER_MEAN);
       return display(line2right, MIDI_CONTROLLER_MEAN - value, "<<<");
-    case ReverbTypeParam:
-      return display(line2, "Reverb type:", toString((SoXXLReverbType)value));
     case ReverbSendParam:
       return display(line2, "Reverb send:", value);
-    case EffectsTypeParam:    
-      return display(line2, "FX type:", toString((SoXXLEffectsType)value));
     case EffectsSendParam:    
       return display(line2, "FX send:", value);
     case CutoffParam:
@@ -1026,6 +1040,14 @@ void sendGlobals() {
   */ 
 }
 
+/**
+ * General MIDI Reset
+ */
+void sendGMReset() {
+  SoXXLMessage msg = gmReset();
+  midi3.sendSysEx(msg.length, msg.buff, true);
+}
+
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
   SoXXLMessage msg;
   switch (p) {
@@ -1041,15 +1063,7 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
       return;
     case VolumeParam: return midi3.sendControlChange(midi::ChannelVolume, (midi::DataByte)value, channel);
     case PanParam: return midi3.sendControlChange(midi::Pan, (midi::DataByte)value, channel);
-    case ReverbTypeParam:
-      msg = toReverbTypeMsg(value);
-      midi3.sendSysEx(msg.length, msg.buff, true);
-      return;
     case ReverbSendParam: return midi3.sendControlChange(0x5b, value, channel); 
-    case EffectsTypeParam:
-      msg = toEffectTypeMsg(value);
-      midi3.sendSysEx(msg.length, msg.buff, true);
-      return;
     case EffectsSendParam: return midi3.sendControlChange(0x5d, value, channel);
     case CutoffParam: return  midi3.sendControlChange(midi::SoundController5, value, channel);
     case ResonanceParam: return midi3.sendControlChange(midi::SoundController2, value, channel);   
@@ -1059,6 +1073,20 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
     case VibratoRateParam: return midi3.sendControlChange(midi::SoundController7, value, channel);
     case VibratoDepthParam: return midi3.sendControlChange(midi::SoundController8, value, channel);
     case VibratoDelayParam: return midi3.sendControlChange(midi::SoundController9, value, channel);
+  }
+}
+
+void sendCommonParameter(CommonParameter p, byte value) {
+  SoXXLMessage msg;
+  switch (p) {
+    case FX1TypeParam: 
+      msg = toReverbTypeMsg(value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
+      break;
+    case FX2TypeParam:
+      msg = toEffectTypeMsg(value);
+      midi3.sendSysEx(msg.length, msg.buff, true);
+      break;
   }
 }
 
@@ -1095,6 +1123,12 @@ void setParamValuePointer(CommonParameter p) {
     case PedalModeParam:
       param_value = &currentPreset.pedal_mode;
       break;
+    case FX1TypeParam:
+      param_value = &currentPreset.fx1_type;
+      break;
+    case FX2TypeParam:
+      param_value = &currentPreset.fx2_type;
+      break;
   }
 }
 
@@ -1118,14 +1152,8 @@ void setParamValuePointer(SoundParameter p) {
     case PanParam:
       param_value = &(editedSound->pan);
       break;
-    case ReverbTypeParam:
-      param_value = &(editedSound->reverb_type);
-      break;
     case ReverbSendParam:
       param_value = &(editedSound->reverb_send);
-      break;
-    case EffectsTypeParam:
-      param_value = &(editedSound->effects_type);
       break;
     case EffectsSendParam:
       param_value = &(editedSound->effects_send);
@@ -1198,7 +1226,8 @@ void getMinMaxRange(SoundParameter p, int & mini, int & maxi, int & range) {
     case PitchAssign:
       range = n_wheel_assignable_ctrls; // with pitch bend
       break;
-    case Switch1Assign:  case Switch2Assign:
+    case Switch1Assign:  
+    case Switch2Assign:
       range = n_switch_assignable_ctrls; 
       break;
   }  
@@ -1557,7 +1586,7 @@ void handlePedal(int pedal, boolean on) {
   switch (state) {
     case playingSound:
     case selectSound:
-    case editGlobals:
+//    case editGlobals:
     case showInfo:
       preset_mode = false;
       break;

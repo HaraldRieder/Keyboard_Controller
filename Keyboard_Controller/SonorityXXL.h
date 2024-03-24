@@ -26,6 +26,8 @@ enum SoXXLBank {
   FXnPerc = 21
 };
 
+const int n_SoXXL_reverbs = 16;
+
 enum SoXXLReverbType {
   HALL1 = 0,
   HALL2 = 1,
@@ -45,6 +47,8 @@ enum SoXXLReverbType {
   ROTARY_SPEAKER = 15
 };
 
+const int n_SoXXL_effects = 8;
+
 enum SoXXLEffectsType {
   CHORUS1 = 0,
   CHORUS2 = 1,
@@ -56,8 +60,7 @@ enum SoXXLEffectsType {
   FB_DELAY = 7,
 };
 
-const int n_SoXXL_banks = 5;
-const int n_SoXXL_parts = 32; // General MIDI parts
+const int n_SoXXL_banks = 22;
 
 /**
  * Returns the name of the sound bank as string with a max. length of 5 characters.
@@ -302,33 +305,33 @@ PROGMEM const char Bank1Names[][MAX_NAME_LEN+1] = {
 // [E-Piano]
 PROGMEM const char Bank2Names[][MAX_NAME_LEN+1] = {
 /*0*/ "Electric Grand",
-/*1*/ "Electric Grand",
-/*2*/ "Electric Grand",
-/*3*/ "Electric Grand",
-/*4*/ "E-Piano MK1 Classic",
-/*5*/ "E-Piano MK1 Classic",
-/*6*/ "E-Piano MK1 Classic",
-/*7*/ "E-Piano MK1 Classic",
-/*8*/ "E-Piano MK1 Classic",
-/*9*/ "E-Piano MK1 Classic",
-/*10*/ "E-Piano MK1 Classic",
-/*11*/ "E-Piano V3 Bella",
-/*12*/ "E-Piano V3 Bella",
-/*13*/ "E-Piano V3 Bella",
-/*14*/ "E-Piano V3 Bella",
-/*15*/ "E-Piano Wurl. A200",
-/*16*/ "E-Piano Wurl. A200",
-/*17*/ "E-Piano Wurl. A200",
-/*18*/ "E-Piano DX Classic",
-/*19*/ "E-Piano FM",
-/*20*/ "E-Piano FM",
-/*21*/ "E-Piano FM",
-/*22*/ "E-Piano FM",
-/*23*/ "E-Piano FM",
-/*24*/ "E-Piano FM",
-/*25*/ "E-Piano FM",
-/*26*/ "E-Piano FM",
-/*27*/ "E-Piano FM","","","","",
+/*1*/ "El.Gnd Mic.Atc",
+/*2*/ "El.Gnd. MKS",
+/*3*/ "El.Gnd.curvelo",
+/*4*/ "MK1",
+/*5*/ "MK1 soft",
+/*6*/ "MK1 + MKS",
+/*7*/ "MK1 tremolo",
+/*8*/ "MK1 + Bell",
+/*9*/ "MK1 + FM-Piano",
+/*10*/ "MK1 + Pad",
+/*11*/ "V3 Bella",
+/*12*/ "V3 octave up",
+/*13*/ "V3 + Cortales",
+/*14*/ "V3 + Pad",
+/*15*/ "Wurlitzer A200",
+/*16*/ "Wurl. tremolo1",
+/*17*/ "Wurl. tremolo2",
+/*18*/ "DX Classic",
+/*19*/ "FM-Piano",
+/*20*/ "FM + Bell",
+/*21*/ "FM filter",
+/*22*/ "FM note-off",
+/*23*/ "FM + MKS",
+/*24*/ "FM tremolo1",
+/*25*/ "FM tremolo2",
+/*26*/ "FM + Bell",
+/*27*/ "FM + Bell + Pd","","","","",
 "","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","","","",
 "","","","","","","","","","","","","","","","",

@@ -15,7 +15,7 @@ const int GlobalSettingsAddress = 0;
 const int n_global_settings = 6;
 
 enum GlobalParameter {
-  BassBoostParam, BoostFreqParam, // TODO still SD2 params
+  BassBoostParam, BoostFreqParam, 
   VelocitySlopeParam, VelocityOffsetParam, 
   FilterVelocitySlopeParam, FilterVelocityOffsetParam
 };
@@ -108,10 +108,10 @@ public:
   byte finetune;
   byte volume;
   byte pan;
-  byte reverb_type;
+  byte reserved1;
   byte reverb_send;
-  byte effects_type;
   byte effects_send;
+  byte reserved2;
   byte cutoff_frequency;
   byte resonance;
   byte attack_time;
@@ -120,9 +120,9 @@ public:
   byte vibrato_rate;
   byte vibrato_depth;
   byte vibrato_delay;
-  byte reserved1;
-  byte reserved2;
   byte reserved3;
+  byte reserved4;
+  byte reserved5;
   byte mod_wheel_ctrl_no;
   byte pitch_wheel_ctrl_no;
   byte ext_switch_1_ctrl_no;
@@ -131,7 +131,7 @@ public:
 };
 
 // change magic value  to force init of each preset
-const long magic = 0x2e031fe2;
+const long magic = 0x2e031fe5;
 
 enum PedalMode { BassPedal, ControllerPedal };
 
@@ -141,8 +141,8 @@ public:
   long magic;
   byte split_point;
   byte pedal_mode;
-  byte reserved7;
-  byte reserved8;
+  byte fx1_type;
+  byte fx2_type;
   byte reserved9;
   Sound layer, right, left, foot;
 };
@@ -179,16 +179,14 @@ void savePreset(int presetNumber, const Preset & preset) {
 }
 
 void defaultSound(Sound & sound) {
-  sound.bank = GeneralMIDI;
-  sound.program_number = 0; // Grand Piano
+  sound.bank = Piano;
+  sound.program_number = 0; // GM 
   sound.transpose = MIDI_CONTROLLER_MEAN; // means 0
   sound.finetune = MIDI_CONTROLLER_MEAN; // 0 cent
   sound.volume = 100;
   sound.pan = MIDI_CONTROLLER_MEAN;
   sound.reverb_send = 15;
-  sound.reverb_type = HALL1;
   sound.effects_send = 0;
-  sound.effects_type = CHORUS1;
   sound.cutoff_frequency = MIDI_CONTROLLER_MEAN;
   sound.resonance = 0;
   sound.attack_time =  MIDI_CONTROLLER_MEAN;
@@ -207,17 +205,26 @@ void defaultPreset(Preset & preset) {
   preset.magic = magic; // is a valid data set now
   preset.split_point = invalid; // no split left|right
   preset.pedal_mode = ControllerPedal;
+  preset.fx1_type = HALL1;
+  preset.fx2_type = CHORUS1;
 
   defaultSound(preset.foot);
+  preset.foot.finetune = MIDI_CONTROLLER_MEAN - 2;
   preset.foot.program_number = 32; // Jazz Bass 
 
   defaultSound(preset.left);
+  preset.left.bank = Piano;
+  preset.left.program_number = 5; // classic grand piano with resonance
+  preset.left.cutoff_frequency = 22;
   preset.left.mod_wheel_ctrl_no = Modulation; 
   preset.left.pitch_wheel_ctrl_no = Pitch;
   preset.left.ext_switch_1_ctrl_no = Sustain; 
   preset.left.ext_switch_2_ctrl_no = Sostenuto; 
 
   defaultSound(preset.right);
+  preset.right.bank = Piano;
+  preset.right.program_number = 5; // classic grand piano with resonance
+  preset.right.cutoff_frequency = 22;
   preset.right.mod_wheel_ctrl_no = Modulation; 
   preset.right.pitch_wheel_ctrl_no = Pitch;
   preset.right.ext_switch_1_ctrl_no = Sustain; 
@@ -240,19 +247,20 @@ enum ParameterSet {
   CommonParameters, FootParameters, LeftParameters, RightParameters, LayerParameters  
 };
 
-const int n_common_parameters = 2;
+const int n_common_parameters = 4;
 
 enum CommonParameter {
   SplitParam,
-  PedalModeParam
+  PedalModeParam,
+  FX1TypeParam,
+  FX2TypeParam
 };
 
 const int n_sound_parameters = 22;
 
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, FinetuneParam, VolumeParam, PanParam, 
-  ReverbSendParam, ReverbTypeParam, EffectsSendParam, EffectsTypeParam, 
-  CutoffParam, ResonanceParam,
+  ReverbSendParam, EffectsSendParam, CutoffParam, ResonanceParam,
   AttackTimeParam, DecayTimeParam, ReleaseTimeParam, 
   VibratoRateParam, VibratoDepthParam, VibratoDelayParam,
   ModAssign, PitchAssign, Switch1Assign, Switch2Assign
@@ -268,7 +276,7 @@ enum State {
   editPresetSound,
   askSavePreset,
   waitFor2ndTransposeKey,
-  editGlobals,
+//  editGlobals,
   showInfo
 };
 
@@ -281,4 +289,5 @@ void displayPreset(const Preset & Preset);
 void sendSound(SoXXLBank bank, midi::DataByte program_number, midi::Channel channel);
 void sendSound(const Sound & sound, midi::Channel channel);
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
+void sendGMReset();
 void process(Event event, int value);
