@@ -484,8 +484,8 @@ void process(Event event, int value) {
            {
              value = value * n_parameter_sets / (MIDI_CONTROLLER_MAX+1); // now 0..n_parameter_sets
              // depending on the common parameters we have more or less parameter sets: 
-             // common, foot, left, right
-             // common, left, right (controller pedal)
+             // common, foot, left, right, layer
+             // common, left, right, layer (controller pedal)
              // common, foot, left (no split point)
              // common, left (controller pedal, no split point)
              // => correct value when foot or left are not allowed
@@ -809,6 +809,7 @@ void displayParameterSet(DisplayArea area, const Preset & preset, const Paramete
     case FootParameters: return display(area, "Bass Pedal");
     case LeftParameters: return display(area, preset.split_point == invalid ? "Keyboard" : "Left Keyb. Section");
     case RightParameters: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Section");
+    case LayerParameters: return display(area, preset.split_point == invalid ? "Keyboard" : "Right Keyb. Layer");
   }
 }
 
