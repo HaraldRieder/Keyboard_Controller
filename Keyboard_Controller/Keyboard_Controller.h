@@ -93,7 +93,7 @@ enum WheelAssignableController {
   Pitch = 0xfe // must be the last, only offered for pitch wheel
 };
 
-const int n_presets = 60; // 54 bytes/preset * 60 presets = 3240 bytes EEPROM occupied by presets
+const int n_presets = 35; // 116 bytes/preset * 35 presets = 4060 bytes EEPROM occupied by presets
 const int n_sounds_per_preset = 4; // foot + left hand + right hand [+ right layered]
 
 // start address of preset storage area in EEPROM
@@ -269,8 +269,6 @@ enum SoundParameter {
 enum State {
   playingSound, 
   playingPreset,
-  selectSound,
-  selectPreset,
   editPreset,
   editPresetCommon,
   editPresetSound,
