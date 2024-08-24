@@ -104,10 +104,11 @@ void setup() {
   char b[30];
   sprintf(b, "%i bytes free", freeMemory());
   display(line2, b);
-  delay(2000);
+  delay(2500);
   display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
   display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
-  delay(2000);
+  delay(2500);
+  // V3 XXL needs these 2 * 2.5 seconds to get ready!
     
   readGlobals();
   sendGlobals();
