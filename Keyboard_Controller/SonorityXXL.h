@@ -93,6 +93,8 @@ const char * toString(SoXXLBank bank) {
 }
 
 SoXXLBank toSoXXLBank(int index) {
+  if (index < 0)
+    return FXnPerc;
   switch (index) {
     case 1: return Piano;
     case 2: return EPiano;
@@ -217,7 +219,7 @@ PROGMEM const char Bank0Names[][MAX_NAME_LEN+1] = {
 /*64*/ "Sopran Sax",
 /*65*/ "Alto Sax",
 /*66*/ "Tenor Sax",
-/*67*/ "Bariton Sax",
+/*67*/ "Baritone Sax",
 /*68*/ "Oboe",
 /*69*/ "English Horn",
 /*70*/ "Bassoon",
@@ -419,7 +421,7 @@ PROGMEM const char Bank4Names[][MAX_NAME_LEN+1] = {
 /*10*/ "Easy Listening",
 /*11*/ "JSmith 88_ Pc3",
 /*12*/ "JSmith 8_8 Pc3",
-/*13*/ "Joey Defrancesco",
+/*13*/ "Joey Defrncsco",
 /*14*/ "Ballad 2",
 /*15*/ "Jesse Crawford",
 /*16*/ "JoeyDeFran 888",
@@ -873,8 +875,8 @@ PROGMEM const char Bank12Names[][MAX_NAME_LEN+1] = {
 /*30*/ "Tenorhorn",
 /*31*/ "Tenorhorn vbrt",
 /*32*/ "Alphorn",
-/*33*/ "Baritone vibrat",
-/*34*/ "Baritone stacct",
+/*33*/ "Baritone vbrt",
+/*34*/ "Baritone stacc",
 /*35*/ "Tuba",
 /*36*/ "Tuba soft","","","","","","","","","","","",
 "","","","","","","","","","","","","","","","",
@@ -996,7 +998,7 @@ PROGMEM const char Bank16Names[][MAX_NAME_LEN+1] = {
 /*1*/ "Clarinet soft",
 /*2*/ "Clarinet slide",
 /*3*/ "Hugo Clarinet",
-/*4*/ "Hugo Clarinet slide",
+/*4*/ "Hugo Clr slide",
 /*5*/ "Clr Tradition",
 /*6*/ "Clr Tradition",
 /*7*/ "Clr Trad soft",
@@ -1106,9 +1108,9 @@ PROGMEM const char Bank19Names[][MAX_NAME_LEN+1] = {
 /*8*/ "E-Bass 5 Pick1",
 /*9*/ "E-B.5 Pck1 n-o",
 /*10*/ "E-Bass 6 Pick2",
-/*11*/ "E-B.6 Pick2 n-o",
+/*11*/ "E-B.6 Pck2 n-o",
 /*12*/ "E-Bass 7",
-/*13*/ "E-Bass 7 repeti",
+/*13*/ "E-Bass 7 repet",
 /*14*/ "E-B.7 note-off",
 /*15*/ "E-B. Fretless",
 /*16*/ "E-Bass Slap1",

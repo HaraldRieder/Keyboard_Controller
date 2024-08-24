@@ -1598,9 +1598,9 @@ void handlePedal(int pedal, boolean on) {
       right_text = "Sostenuto";
       break;
     case 9:
-      // in sound mode cycle banks
+      // in sound mode cycle banks down
       if (state == playingSound && on) {
-        current_bank = toSoXXLBank(toIndex(current_bank) + 1);
+        current_bank = toSoXXLBank(toIndex(current_bank) - 1);
         sendSound(current_bank, program_number, sound_channel);
         displaySound(current_bank, program_number);
       }
@@ -1611,6 +1611,12 @@ void handlePedal(int pedal, boolean on) {
       right_text = "Sustain";
       break;
     case 11:
+      // in sound mode cycle banks up
+      if (state == playingSound && on) {
+        current_bank = toSoXXLBank(toIndex(current_bank) + 1);
+        sendSound(current_bank, program_number, sound_channel);
+        displaySound(current_bank, program_number);
+      }
       break;
     case 12:
       // portamento on/off
