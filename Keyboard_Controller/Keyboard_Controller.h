@@ -94,6 +94,7 @@ enum WheelAssignableController {
 };
 
 const int n_presets = 35; // 116 bytes/preset * 35 presets = 4060 bytes EEPROM occupied by presets
+const int specialPreset = n_presets - 1; // external Juno-DS
 const int n_sounds_per_preset = 4; // foot + left hand + right hand [+ right layered]
 
 // start address of preset storage area in EEPROM

@@ -584,16 +584,21 @@ void process(Event event, int value) {
           displayPreset(currentPreset, -1/*not in EEPROM*/);
           return;
         case pitchWheel:
-          // preset select, increment/decrement by 1 or by 10 
-          if (handlePitchWheelEvent(value, 0, n_presets-1, &preset_number)) {
-            displayDestinationPreset(preset_number);
+          // destination preset select
+          // (dirty hack: don't offer the last preset as destination)
+          if (preset_number < specialPreset) {
+            if (handlePitchWheelEvent(value, 0, specialPreset - 1, &preset_number)) {
+              displayDestinationPreset(preset_number);
+            }
           }
           return;
         case modWheel:
-          value = value * n_presets / (MIDI_CONTROLLER_MAX+1);
-          if (value != preset_number) {
-            preset_number = value;
-            displayDestinationPreset(preset_number);
+          if (preset_number < specialPreset) {
+            value = value * (n_presets - 1/*special*/) / (MIDI_CONTROLLER_MAX+1);
+            if (value != preset_number) {
+              preset_number = value;
+              displayDestinationPreset(preset_number);
+            }
           }
           return;
       }  
@@ -650,9 +655,9 @@ void displaySound(SoXXLBank bank, int number) {
  * Displays program names of right, left, foot in the 3 other areas of the LCD.
  */ 
 void displayPreset(const Preset & preset, int number) {
-  if (preset_number == n_presets - 1) {
-    display(line1, "External");
-    display(line2, "transp l/r = +12/-12");
+  if (preset_number == specialPreset) {
+    display(line1, "External Juno-DS");
+    display(line2, "transp. l/r = 0/-12");
   }
   else {
     display(line1, "Preset", number+1);
@@ -662,8 +667,8 @@ void displayPreset(const Preset & preset, int number) {
       display(line2left, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
       display(line2right, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
     }
-    else if (preset.right.bank != invalid) 
-      display(line2, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
+    else if (preset.left.bank != invalid) 
+      display(line2, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
     else 
       display(line2, "Invalid Preset!");
   }
@@ -685,7 +690,7 @@ void sendSound(SoXXLBank bank, midi::DataByte program_number, midi::Channel chan
  * Sends sound settings of 1 preset part to MIDI.
  */ 
 void sendSound(const Sound & sound, midi::Channel channel) {
-  if (preset_number == n_presets - 1) 
+  if (preset_number == specialPreset) 
     return; // dirty hack for external Juno-D
   sendSound((SoXXLBank)sound.bank, sound.program_number, channel);
   sendSoundParameter(TransposeParam, sound.transpose, channel);
@@ -1275,7 +1280,7 @@ void handleExtSwitch1(int inval) {
         Sound * s = currentPresetSounds[i];
         if (s->ext_switch_1_ctrl_no != NoSwitch) {
           midi::DataByte ctrlval = off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX; 
-          if (preset_number == n_presets - 1) {
+          if (preset_number == specialPreset) {
             // dirty hack, last preset controls my external Juno-D
             midi3.sendControlChange(s->ext_switch_1_ctrl_no, ctrlval, s->channel + 1);
           }
@@ -1301,7 +1306,7 @@ void handleExtSwitch2(int inval) {
         Sound * s = currentPresetSounds[i];
         if (s->ext_switch_2_ctrl_no != NoSwitch) {
           midi::DataByte ctrlval = off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX;
-          if (preset_number == n_presets - 1) {
+          if (preset_number == specialPreset) {
             // dirty hack, last preset controls my external Juno-D
             midi3.sendControlChange(s->ext_switch_2_ctrl_no, ctrlval, s->channel + 1);
           }
@@ -1465,7 +1470,7 @@ void handleNoteOn(byte channel, byte note, byte velocity)
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOn(note, velocity, left_channel);
       else {
-        if (preset_number == n_presets - 1) {
+        if (preset_number == specialPreset) {
           // dirty hack, last preset controls my external Juno-D
           byte n = note > currentPreset.split_point ? note - 12 : note; 
           if (note > currentPreset.split_point) {
@@ -1504,7 +1509,7 @@ void handleNoteOff(byte channel, byte note, byte velocity)
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOff(note, velocity, left_channel);
       else {
-        if (preset_number == n_presets - 1) {
+        if (preset_number == specialPreset) {
           // dirty hack, last preset controls my external Juno-D
           byte n = note > currentPreset.split_point ? note - 12 : note; 
           if (note > currentPreset.split_point) {
@@ -1662,7 +1667,7 @@ void handlePedal(int pedal, boolean on) {
               case midi::SoftPedal:
               case Rotor:
               case midi::Portamento:
-                if (preset_number == n_presets - 1) {
+                if (preset_number == specialPreset) {
                   // dirty hack, last preset controls my external Juno-D
                   midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel + 1);
                 }
