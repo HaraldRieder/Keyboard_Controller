@@ -393,16 +393,16 @@ void process(Event event, int value) {
     case editPreset:
       switch (event) {
         case exitBtn:
+          state = askSavePreset;
           if (changed(currentPreset, preset_number)) {
-            state = askSavePreset;
             display(line1, "Save changed preset?");
-            display(line2, "red=yes black=no");
           }
           else {
-            state = playingPreset;
-            sendPreset(currentPreset);
-            displayPreset(currentPreset, preset_number);
+            display(line1, "Copy preset?");
           }
+          display(line2, "red=yes black=no");
+          delay(1500);
+          displayDestinationPreset(preset_number);
           return;
         case enterBtn:
           common_parameter = SplitParam;
