@@ -896,22 +896,14 @@ const char * toString(SwitchAssignableController c) {
 
 const char * toString(SoXXLReverbType t) {
   switch (t) {
-    case HALL1: return "Hall 1";
-    case HALL2: return "Hall 2";
     case ROOM1: return "Room 1";
     case ROOM2: return "Room 2";
     case ROOM3: return "Room 3";
-    case PLATE1: return "Plate 1";
-    case PLATE2: return "Plate 2";
-    case PLATE3: return "Plate 3";
-    case CHORUS: return "Chorus";
-    case FLANGE: return "Flanger";
-    case DELAY1: return "Delay 1";
-    case DELAY2: return "Delay 2";
-    case CHORUS_ROOM1: return "Chr+Room 1";
-    case CHORUS_ROOM2: return "Chr+Room 2";
-    case VOCCANCEL: return "Voc.Cancel";
-    case ROTARY_SPEAKER: return "Rotary";
+    case HALL1: return "Hall 1";
+    case HALL2: return "Hall 2";
+    case PLATE: return "Plate";
+    case DELAY: return "Delay";
+    case PAN_DELAY: return "Pan Delay";
   }
   return "?";
 }
@@ -981,23 +973,28 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
 }
 
 /**
- * Sends all global MIDI settings: SD2 bass boost gain+frequency, ...
+ * Sends all global MIDI settings: equalizers, ...
  */
 void sendGlobals() {
-  /*
-  SD2Message msg = bassBoostMsg(globalSettings.SD2_bass_boost, globalSettings.SD2_boost_freq);
+  SoXXLMessage msg;
+  // reset main outputs EQ
+  msg = toGlobalNRPNMsg(MainEQLowGain, MIDI_CONTROLLER_MEAN);
   midi3.sendSysEx(msg.length, msg.buff, true);
-  for (int i = 0; i < n_SD2_parts; i++) {
-    msg = velocitySlopeMsg(i, globalSettings.SD2_velo_slope);
-    midi3.sendSysEx(msg.length, msg.buff, true);
-    msg = velocityOffsetMsg(i, globalSettings.SD2_velo_offset);
-    midi3.sendSysEx(msg.length, msg.buff, true);
-    msg = filtervSlopeMsg(i, globalSettings.SD2_filter_velo_slope);
-    midi3.sendSysEx(msg.length, msg.buff, true);
-    msg = filtervOffsetMsg(i, globalSettings.SD2_filter_velo_offset);
-    midi3.sendSysEx(msg.length, msg.buff, true);
-  } 
-  */ 
+  msg = toGlobalNRPNMsg(MainEQLowMidGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(MainEQHighMidGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(MainEQHighGain, MIDI_CONTROLLER_MEAN);
+  // reset auxiliary outputs EQ
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(AuxEQLowGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(AuxEQLowMidGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(AuxEQHighMidGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true);
+  msg = toGlobalNRPNMsg(AuxEQHighGain, MIDI_CONTROLLER_MEAN);
+  midi3.sendSysEx(msg.length, msg.buff, true); 
 }
 
 /**

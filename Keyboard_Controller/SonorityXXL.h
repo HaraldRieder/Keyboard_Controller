@@ -26,25 +26,17 @@ enum SoXXLBank {
   FXnPerc = 21
 };
 
-const int n_SoXXL_reverbs = 16;
+const int n_SoXXL_reverbs = 8;
 
 enum SoXXLReverbType {
-  HALL1 = 0,
-  HALL2 = 1,
-  ROOM1 = 2,
-  ROOM2 = 3,
-  ROOM3 = 4,
-  PLATE1 = 5,
-  PLATE2 = 6,
-  PLATE3 = 7,
-  CHORUS = 8,
-  FLANGE = 9,
-  DELAY1 = 10,
-  DELAY2 = 11,
-  CHORUS_ROOM1 = 12,
-  CHORUS_ROOM2 = 13,
-  VOCCANCEL = 14,
-  ROTARY_SPEAKER = 15
+  ROOM1 = 0,
+  ROOM2 = 1,
+  ROOM3 = 2,
+  HALL1 = 3,
+  HALL2 = 4,
+  PLATE = 5,
+  DELAY = 6,
+  PAN_DELAY = 7
 };
 
 const int n_SoXXL_effects = 8;
@@ -1434,6 +1426,54 @@ SoXXLMessage toNRPNMsg(SoXXLNRPN nrpn, byte channel, byte value) {
   return SoXXL_msg;
 }
 
+enum SoXXLGlobalNRPN {
+  MainEQLowGain, 
+  MainEQLowMidGain, 
+  MainEQHighMidGain, 
+  MainEQHighGain, 
+  AuxEQLowGain, 
+  AuxEQLowMidGain, 
+  AuxEQHighMidGain, 
+  AuxEQHighGain
+};
+
+SoXXLMessage toGlobalNRPNMsg(SoXXLGlobalNRPN nrpn, byte value) {
+  SoXXL_msg.length = 7;
+  SoXXL_msg.buff[0] = 0xB0; // channel always 0 here
+  SoXXL_msg.buff[1] = 0x63;
+  SoXXL_msg.buff[2] = 0x37;
+  SoXXL_msg.buff[3] = 0x62;
+  SoXXL_msg.buff[5] = 0x06;
+  SoXXL_msg.buff[6] = value;
+  switch (nrpn) {
+    case MainEQLowGain:
+      SoXXL_msg.buff[4] = 0x08; 
+      break;
+    case MainEQLowMidGain:
+      SoXXL_msg.buff[4] = 0x09; 
+      break;
+    case MainEQHighMidGain:
+      SoXXL_msg.buff[4] = 0x0A; 
+      break;
+    case MainEQHighGain:
+      SoXXL_msg.buff[4] = 0x0B; 
+      break;
+    case AuxEQLowGain:
+      SoXXL_msg.buff[4] = 0x12; 
+      break;
+    case AuxEQLowMidGain:
+      SoXXL_msg.buff[4] = 0x13; 
+      break;
+    case AuxEQHighMidGain:
+      SoXXL_msg.buff[4] = 0x14; 
+      break;
+    case AuxEQHighGain:
+      SoXXL_msg.buff[4] = 0x15; 
+      break;
+  }
+  return SoXXL_msg;
+}
+
 /**
  * Master volume 0..127.
  */
@@ -1458,8 +1498,8 @@ SoXXLMessage toReverbTypeMsg(byte type) {
   SoXXL_msg.buff[3] = 0x42;
   SoXXL_msg.buff[4] = 0x12;
   SoXXL_msg.buff[5] = 0x40;
-  SoXXL_msg.buff[6] = 0x7f;
-  SoXXL_msg.buff[7] = 0x7f;
+  SoXXL_msg.buff[6] = 0x01;
+  SoXXL_msg.buff[7] = 0x30;
   SoXXL_msg.buff[8] = type;
   SoXXL_msg.buff[9] = 0x00;
   SoXXL_msg.buff[10] = 0xf7;
@@ -1492,3 +1532,5 @@ SoXXLMessage gmReset() {
   SoXXL_msg.buff[5] = 0xf7;
   return SoXXL_msg;
 }
+
+
