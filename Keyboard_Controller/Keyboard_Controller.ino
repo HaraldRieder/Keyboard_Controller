@@ -487,7 +487,14 @@ void process(Event event, int value) {
         case pitchWheel:
           // split point or pedal mode, increment/decrement by 1 or by 10 
           {
-            if (handlePitchWheelEvent(value, -1, MIDI_CONTROLLER_MAX, &int_param_value)) {
+            int min = -1;
+            int max = MIDI_CONTROLLER_MAX;
+            switch (common_parameter) {
+              case PedalModeParam: min = 0; max = n_pedal_modes - 1; break;
+              case FX1TypeParam: min = 0; max = n_SoXXL_reverbs - 1; break;
+              case FX2TypeParam: min = 0; max = n_SoXXL_effects - 1; break;
+            }
+            if (handlePitchWheelEvent(value, min, max, &int_param_value)) {
               *param_value = map_to_byte(common_parameter, int_param_value);
               displayCommonParameter(common_parameter, *param_value);
               sendCommonParameter(common_parameter, *param_value);

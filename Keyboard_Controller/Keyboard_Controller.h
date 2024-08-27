@@ -131,9 +131,10 @@ public:
   byte channel; // not [yet] adjustable but comfortable here
 };
 
-// change magic value  to force init of each preset
+// change magic value to force init of each preset
 const long magic = 0x2e031fe5;
 
+const int n_pedal_modes = 2;
 enum PedalMode { BassPedal, ControllerPedal };
 
 /* EEPROM structure */
