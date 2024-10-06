@@ -9,6 +9,10 @@
 
 const char * MY_NAME = "DEMIAN";
 
+const byte velocity_map_hard[128] = {
+#include "120_90_min7.h"
+};
+
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
 
@@ -268,7 +272,7 @@ enum SoXXLBank current_bank = GeneralMIDI;
  * @value optional value, meaning depends on event type
  */
 void process(Event event, int value) {
-  static GlobalParameter global_parameter = BassBoostParam;
+  static GlobalParameter global_parameter = VelocityMapParam;
   static ParameterSet parameter_set = CommonParameters;
   static CommonParameter common_parameter = SplitParam;
   static SoundParameter sound_parameter = BankParam;
@@ -312,19 +316,11 @@ void process(Event event, int value) {
       switch (event) {
         case enterBtn:
         case exitBtn:
-        /* no global for V3 Sound module          
           state = editGlobals;
           display(line1, "Global Settings");
           setParamValuePointer(global_parameter);
           int_param_value = map_from_byte(global_parameter, *param_value);
           displayGlobalParameter(global_parameter, *param_value);
-          return;
-        */
-          displayInfo();
-          delay(2000);
-          state = playingPreset;
-          sendPreset(currentPreset);
-          displayPreset(currentPreset, preset_number);
           return;
         case volumeKnob:
           if (int_switch_on) {
@@ -349,12 +345,16 @@ void process(Event event, int value) {
       }
       return;
       
-    /*case editGlobals:
+    case editGlobals:
       switch (event) {
         case exitBtn:
           saveGlobals();
           state = showInfo;
           displayInfo();
+          delay(2000);
+          state = playingPreset;
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number);
           return;
         case modWheel:
            value = value * n_global_settings / (MIDI_CONTROLLER_MAX+1);
@@ -370,8 +370,13 @@ void process(Event event, int value) {
           {
             int mini, maxi, range;
             getMinMaxRange(global_parameter, mini, maxi, range);
+            Serial.print("mini="); Serial.print(mini);
+            Serial.print(" maxi="); Serial.print(maxi);
+            Serial.print(" range="); Serial.println(range);
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
+              Serial.print("int_param_value="); Serial.print(int_param_value);
               *param_value = map_to_byte(global_parameter, int_param_value);
+              Serial.print(" param_value="); Serial.println(*param_value);
               displayGlobalParameter(global_parameter, *param_value);
               sendGlobals();
             }
@@ -379,7 +384,7 @@ void process(Event event, int value) {
           return;
       }
       return;
-    */  
+
     case showInfo:
       switch (event) {
         case exitBtn:
@@ -619,12 +624,7 @@ void displayInfo() {
 
 const char * toString(GlobalParameter p) {
   switch (p) {
-    case BassBoostParam: return "Bs.Boost";
-    case BoostFreqParam: return "Boost Frq.";
-    case VelocitySlopeParam: return "Velo.Slope";
-    case VelocityOffsetParam: return "Velo.Offs.";
-    case FilterVelocitySlopeParam: return "Filt.V.Sl.";
-    case FilterVelocityOffsetParam: return "Filt.V.Of.";
+    case VelocityMapParam: return "Velo. Map";
   }
   return "unknown global";
 }
@@ -634,6 +634,10 @@ const char * toString(GlobalParameter p) {
  */ 
 void displayGlobalParameter(GlobalParameter p, byte value) {
   display(line2left, toString(p));
+  if (p == VelocityMapParam) {
+    display(line2right, value == 1 ? "hard" : "normal");
+    return;
+  }
   display(line2right, value);
 }
 
@@ -1055,28 +1059,11 @@ void sendCommonParameter(CommonParameter p, byte value) {
 }
 
 void setParamValuePointer(GlobalParameter p) {
-  /*
   switch (p) {
-    case BassBoostParam:
-      param_value = &globalSettings.SD2_bass_boost;
-      break;
-    case BoostFreqParam:
-      param_value = &globalSettings.SD2_boost_freq;
-      break;
-    case VelocitySlopeParam:
-      param_value = &globalSettings.SD2_velo_slope;
-      break;
-    case VelocityOffsetParam:
-      param_value = &globalSettings.SD2_velo_offset;
-      break;
-    case FilterVelocitySlopeParam:
-      param_value = &globalSettings.SD2_filter_velo_slope;
-      break;
-    case FilterVelocityOffsetParam:
-      param_value = &globalSettings.SD2_filter_velo_offset;
+    case VelocityMapParam:
+      param_value = &globalSettings.velocity_map;
       break;
   }
-  */
 }
 
 void setParamValuePointer(CommonParameter p) {
@@ -1164,16 +1151,11 @@ void setParamValuePointer(SoundParameter p) {
 void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
   mini = 0;
   range = MIDI_CONTROLLER_MAX + 1;
-  /*
   switch (p) {
-    case BassBoostParam:
-      range = max_boost_gain + 1;
-      break;
-    case BoostFreqParam:
-      range = max_boost_freq + 1;
+    case VelocityMapParam:
+      range = 2;
       break;
   }
-  */
   maxi = mini + range - 1;
 }
 
@@ -1466,6 +1448,9 @@ void externalControl(int value) {
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
+  if (globalSettings.velocity_map == 1) {
+    velocity = velocity_map_hard[velocity];
+  }
   switch (state) {
     case playingSound: 
       midi3.sendNoteOn(note, velocity, sound_channel);
