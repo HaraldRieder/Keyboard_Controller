@@ -9,6 +9,10 @@
 
 const char * MY_NAME = "DEMIAN";
 
+const byte velocity_map[128] = {
+//#include "120_90_min7.csv"
+};
+
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
 
@@ -1466,6 +1470,7 @@ void externalControl(int value) {
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
+  velocity = velocity_map[velocity];
   switch (state) {
     case playingSound: 
       midi3.sendNoteOn(note, velocity, sound_channel);
