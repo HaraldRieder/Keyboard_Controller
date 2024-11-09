@@ -9,9 +9,21 @@
 
 const char * MY_NAME = "DEMIAN";
 
-const byte velocity_map_hard[128] = {
+const byte velocity_maps[n_velocity_maps][128] = {{
+#include "normal_min7.h"
+},{
+#include "110_100_min7.h"
+},{
+#include "110_90_min7.h"
+},{
+#include "110_80_min7.h"
+},{
+#include "120_110_min7.h"
+},{
+#include "120_100_min7.h"
+},{
 #include "120_90_min7.h"
-};
+}};
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
@@ -290,6 +302,7 @@ void process(Event event, int value) {
           sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
+          sendSoundParameter(ReverbSendParam, 15, channel);
           displaySound(current_bank, program_number);
           return;
         case enterBtn:
@@ -370,13 +383,8 @@ void process(Event event, int value) {
           {
             int mini, maxi, range;
             getMinMaxRange(global_parameter, mini, maxi, range);
-            Serial.print("mini="); Serial.print(mini);
-            Serial.print(" maxi="); Serial.print(maxi);
-            Serial.print(" range="); Serial.println(range);
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
-              Serial.print("int_param_value="); Serial.print(int_param_value);
               *param_value = map_to_byte(global_parameter, int_param_value);
-              Serial.print(" param_value="); Serial.println(*param_value);
               displayGlobalParameter(global_parameter, *param_value);
               sendGlobals();
             }
@@ -635,8 +643,15 @@ const char * toString(GlobalParameter p) {
 void displayGlobalParameter(GlobalParameter p, byte value) {
   display(line2left, toString(p));
   if (p == VelocityMapParam) {
-    display(line2right, value == 1 ? "hard" : "normal");
-    return;
+    switch (value) {
+      case 1: display(line2right, "110 -> 100"); return;
+      case 2: display(line2right, "110 -> 90"); return;
+      case 3: display(line2right, "110 -> 80"); return;
+      case 4: display(line2right, "120 -> 110"); return;
+      case 5: display(line2right, "120 -> 100"); return;
+      case 6: display(line2right, "120 -> 90"); return;
+      default: display(line2right, "normal"); return;
+    }
   }
   display(line2right, value);
 }
@@ -1153,7 +1168,7 @@ void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
   range = MIDI_CONTROLLER_MAX + 1;
   switch (p) {
     case VelocityMapParam:
-      range = 2;
+      range = n_velocity_maps;
       break;
   }
   maxi = mini + range - 1;
@@ -1448,9 +1463,7 @@ void externalControl(int value) {
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
-  if (globalSettings.velocity_map == 1) {
-    velocity = velocity_map_hard[velocity];
-  }
+  velocity = velocity_maps[globalSettings.velocity_map][velocity];
   switch (state) {
     case playingSound: 
       midi3.sendNoteOn(note, velocity, sound_channel);
