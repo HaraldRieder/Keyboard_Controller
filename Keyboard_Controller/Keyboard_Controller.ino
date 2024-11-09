@@ -302,7 +302,7 @@ void process(Event event, int value) {
           sendSound(current_bank, program_number, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
-          sendSoundParameter(ReverbSendParam, 15, channel);
+          sendSoundParameter(ReverbSendParam, 15, sound_channel);
           displaySound(current_bank, program_number);
           return;
         case enterBtn:
