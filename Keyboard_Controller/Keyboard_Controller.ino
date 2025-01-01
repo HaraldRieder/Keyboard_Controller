@@ -67,7 +67,7 @@ const int int_switch_pin = A3;
 boolean int_switch_on;
 
 /* number of current preset, initially the first preset saved in EEPROM */
-int preset_number = 0;
+int preset_number = 0, cancel_number;
 Preset currentPreset;
 Sound * currentPresetSounds[n_sounds_per_preset] = 
   { &currentPreset.right, &currentPreset.left, &currentPreset.foot, &currentPreset.layer };
@@ -297,12 +297,13 @@ void process(Event event, int value) {
         case exitBtn:
           state = playingSound;
           sendGMReset();
-          sendCommonParameter(FX1TypeParam, HALL1);
+          sendCommonParameter(FX1TypeParam, ROOM1);
           sendCommonParameter(FX2TypeParam, CHORUS1);
           sendSound(current_bank, program_number, sound_channel);
+          sendSoundParameter(VolumeParam, 100, sound_channel);
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
-          sendSoundParameter(ReverbSendParam, 15, sound_channel);
+          sendSoundParameter(ReverbSendParam, 10, sound_channel);
           displaySound(current_bank, program_number);
           return;
         case enterBtn:
@@ -415,7 +416,7 @@ void process(Event event, int value) {
           }
           display(line2, "red=yes black=no");
           delay(1500);
-          displayDestinationPreset(preset_number);
+          displayDestinationPreset(cancel_number = preset_number);
           return;
         case enterBtn:
           common_parameter = SplitParam;
@@ -601,7 +602,7 @@ void process(Event event, int value) {
         case exitBtn:
           state = playingPreset;
           sendPreset(currentPreset);
-          displayPreset(currentPreset, -1/*not in EEPROM*/);
+          displayPreset(currentPreset, preset_number = cancel_number);
           return;
         case pitchWheel:
           // destination preset select
