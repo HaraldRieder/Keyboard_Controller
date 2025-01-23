@@ -555,14 +555,7 @@ void process(Event event, int value) {
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
               *param_value = map_to_byte(sound_parameter, int_param_value);
               displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
-              midi::Channel ch = left_channel;
-              if (editedSound == &currentPreset.right)
-                ch = right_channel;
-              else if (editedSound == &currentPreset.foot)
-                ch = foot_channel;
-              else if (editedSound == &currentPreset.layer)
-                ch = layer_channel;
-              sendSoundParameter(sound_parameter, *param_value, ch);
+              sendPresetSoundParameter(sound_parameter, *param_value);
             }
           }
           return;
@@ -581,6 +574,7 @@ void process(Event event, int value) {
       switch (event) {
         case noteEvent: 
           *param_value = (byte)(value - int_param_value + MIDI_CONTROLLER_MEAN);
+          sendPresetSoundParameter(sound_parameter, *param_value);
         case exitBtn:
           displayParameterSet(line1, currentPreset, parameter_set);
           displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
@@ -1058,6 +1052,17 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
     case VibratoDepthParam: return midi3.sendControlChange(midi::SoundController8, value, channel);
     case VibratoDelayParam: return midi3.sendControlChange(midi::SoundController9, value, channel);
   }
+}
+
+void sendPresetSoundParameter(SoundParameter p, byte value) {
+  midi::Channel ch = left_channel;
+  if (editedSound == &currentPreset.right)
+    ch = right_channel;
+  else if (editedSound == &currentPreset.foot)
+    ch = foot_channel;
+  else if (editedSound == &currentPreset.layer)
+    ch = layer_channel;
+  sendSoundParameter(p, *param_value, ch);  
 }
 
 void sendCommonParameter(CommonParameter p, byte value) {
