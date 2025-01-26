@@ -371,13 +371,13 @@ void process(Event event, int value) {
           displayPreset(currentPreset, preset_number);
           return;
         case modWheel:
-           value = value * n_global_settings / (MIDI_CONTROLLER_MAX+1);
-           if (value != global_parameter) {
-             global_parameter = (GlobalParameter)value;
-             setParamValuePointer(global_parameter);
-             int_param_value = map_from_byte(global_parameter, *param_value);
-             displayGlobalParameter(global_parameter, *param_value);
-           }
+          value = value * n_global_settings / (MIDI_CONTROLLER_MAX+1);
+          if (value != global_parameter) {
+            global_parameter = (GlobalParameter)value;
+            setParamValuePointer(global_parameter);
+            int_param_value = map_from_byte(global_parameter, *param_value);
+            displayGlobalParameter(global_parameter, *param_value);
+          }
           return;
         case pitchWheel:
           // increment/decrement by 1 or by 10 
@@ -389,6 +389,19 @@ void process(Event event, int value) {
               displayGlobalParameter(global_parameter, *param_value);
               sendGlobals();
             }
+          }
+          return;
+        case volumeKnob:
+          if (int_switch_on) {
+            int mini, maxi, range;
+            getMinMaxRange(global_parameter, mini, maxi, range);
+            int_param_value = mini + value * range / (MIDI_CONTROLLER_MAX+1) ;
+            *param_value = map_to_byte(global_parameter, int_param_value);
+            displayGlobalParameter(global_parameter, *param_value);
+            sendGlobals();
+          }
+          else {
+            sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
           }
           return;
       }
@@ -515,6 +528,24 @@ void process(Event event, int value) {
             }
           }
           return;
+        case volumeKnob:
+          if (int_switch_on) {
+            int min = -1;
+            int max = MIDI_CONTROLLER_MAX;
+            switch (common_parameter) {
+              case PedalModeParam: min = 0; max = n_pedal_modes - 1; break;
+              case FX1TypeParam: min = 0; max = n_SoXXL_reverbs - 1; break;
+              case FX2TypeParam: min = 0; max = n_SoXXL_effects - 1; break;
+            }
+            int_param_value = min + value * (max-min+1) / (MIDI_CONTROLLER_MAX+1) ;
+            *param_value = map_to_byte(common_parameter, int_param_value);
+            displayCommonParameter(common_parameter, *param_value);
+            sendCommonParameter(common_parameter, *param_value);
+          }
+          else {
+            sendVolumes(currentPreset, volume_val = value);
+          }
+          return;
         case noteEvent:
           if (common_parameter == SplitParam) {
             *param_value = (byte)value;
@@ -557,6 +588,19 @@ void process(Event event, int value) {
               displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
               sendPresetSoundParameter(sound_parameter, *param_value);
             }
+          }
+          return;
+        case volumeKnob:
+          if (int_switch_on) {
+            int mini, maxi, range;
+            getMinMaxRange(sound_parameter, mini, maxi, range);
+            int_param_value = mini + value * range / (MIDI_CONTROLLER_MAX+1) ;
+            *param_value = map_to_byte(sound_parameter, int_param_value);
+            displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
+            sendPresetSoundParameter(sound_parameter, *param_value);
+          }
+          else {
+            sendVolumes(currentPreset, volume_val = value);
           }
           return;
         case noteEvent:
