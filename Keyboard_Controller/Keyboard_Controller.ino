@@ -1547,7 +1547,7 @@ void handleNoteOff(byte channel, byte note, byte velocity)
 /*--------------------------------- foot pedal ---------------------------------*/
 
 /* lowest pedal note (without transpose) */
-const midi::DataByte E_flat = 27;
+const midi::DataByte F = 29;
 const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
@@ -1561,7 +1561,7 @@ void handlePedal(int pedal, boolean on) {
   }
   //digitalWrite(led_pin, LOW);
   if (preset_mode && currentPreset.pedal_mode == BassPedal) {
-    midi::DataByte note = (midi::DataByte)(pedal + E_flat); // transpose done by SD2
+    midi::DataByte note = (midi::DataByte)(pedal + F);
     if (on) 
       midi3.sendNoteOn(note, PedalVelocity, foot_channel);
     else 
