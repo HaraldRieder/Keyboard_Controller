@@ -6,6 +6,7 @@
 #include "Pedal.h"
 #include "Display.h"
 #include "Keyboard_Controller.h"
+#include "Scaletune.h"
 
 const char * MY_NAME = "DEMIAN";
 
@@ -1123,6 +1124,14 @@ void sendCommonParameter(CommonParameter p, byte value) {
   }
 }
 
+void sendScaletune(const Pitches & pitches) {
+  // tune each part
+  for (byte part = 0; part < 16; part++) {
+    SoXXLMessage msg = toScaletuneMsg(part, pitches);
+    midi3.sendSysEx(msg.length, msg.buff, true);
+  }
+}
+
 void setParamValuePointer(GlobalParameter p) {
   switch (p) {
     case VelocityMapParam:
@@ -1514,6 +1523,10 @@ void handleNoteOn(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
   velocity = velocity_maps[globalSettings.velocity_map][velocity];
+  if (velocity == 0 && scaletuneState == waitForScaletuneKey) {
+    processScaletune(note);
+    sendScaletune(current_pitches);
+  }
   switch (state) {
     case playingSound: 
       midi3.sendNoteOn(note, velocity, sound_channel);
@@ -1553,6 +1566,10 @@ void handleNoteOn(byte channel, byte note, byte velocity)
 void handleNoteOff(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
+  if (scaletuneState == waitForScaletuneKey) {
+    processScaletune(note);
+    sendScaletune(current_pitches);
+  }
   switch (state) {
     case playingSound: 
       midi3.sendNoteOff(note, velocity, sound_channel);
@@ -1682,8 +1699,23 @@ void handlePedal(int pedal, boolean on) {
       right_text = "Portam.";
       break;
     case 13:
-      // TODO scale tune with key select
-      break;
+      if (on) {
+        if (state == playingSound || state == playingPreset) {
+          // scale tune with key select
+          scaletuneState = waitForScaletuneKey;
+          displayScale();
+        }
+      }
+      else {
+        scaletuneState = tuned;
+        if (state == playingSound) {
+          displaySound(current_bank, program_number);
+        }
+        else if (state == playingPreset) {
+          displayPreset(currentPreset, preset_number);
+        }
+      }
+      return;
     case 14:
       // rotor fast/slow (not off)
       controller = Rotor;

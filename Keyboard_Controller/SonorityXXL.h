@@ -1393,7 +1393,7 @@ const char * toString(SoXXLBank bank, byte program_number) {
 }
 
 struct SoXXLMessage {
-  byte buff[12];
+  byte buff[24]; // scale tune needs 22 byte
   int length;
 };
 
@@ -1530,6 +1530,27 @@ SoXXLMessage gmReset() {
   SoXXL_msg.buff[3] = 0x09;
   SoXXL_msg.buff[4] = 0x01;
   SoXXL_msg.buff[5] = 0xf7;
+  return SoXXL_msg;
+}
+
+const int n_pitches = 12;
+typedef int Pitches[n_pitches];
+
+SoXXLMessage toScaletuneMsg(byte part, const Pitches & pitches) {
+  SoXXL_msg.length = 22;
+  SoXXL_msg.buff[0] = 0xf0;
+  SoXXL_msg.buff[1] = 0x41;
+  SoXXL_msg.buff[2] = 0x00;
+  SoXXL_msg.buff[3] = 0x42;
+  SoXXL_msg.buff[4] = 0x12;
+  SoXXL_msg.buff[5] = 0x40;
+  SoXXL_msg.buff[6] = 0x10 + (0x0f & part);
+  SoXXL_msg.buff[7] = 0x40;
+  for (int i = 0; i < n_pitches; i++) {
+    SoXXL_msg.buff[8+i] = pitches[i] + 0x40;
+  }
+  SoXXL_msg.buff[20] = 0x00; // don't care
+  SoXXL_msg.buff[21] = 0xf7;
   return SoXXL_msg;
 }
 
