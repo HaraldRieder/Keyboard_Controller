@@ -2,7 +2,7 @@
 
 Der Quellecode für das Arduino Mega 2560 Board ist [auf GitHub](https://github.com/HaraldRieder/Keyboard_Controller) verfügbar.
 
-Das Board verfügt über 8 KByte Hauptspeicher (RAM) und 4 KBytes EEPROM,
+Das Board verfügt über 8 KByte Hauptspeicher (RAM) und 4 KByte EEPROM,
 in dem die duch den Bediener vorgenommenen Einstellungen dauerhaft gespeichert werden.
 
 Aktuell wird davon ausgegangen, dass ein V3 Sonority XXL angesteuert werden soll (`SonorityXXL.h`).
@@ -68,21 +68,91 @@ Mit dem schwarzen Taster kann zyklisch gewechselt werden zwischen
 - Spielen von Sounds
 - Globale Einstellungen
 
+Wenn der schwarze Schalter gedrückt ist, dann wechseln Bedienelemente ihr Verhalten je nach Modus.
+<br/>
+
+| Bedienelement | Spielen von Presets | Spielen von Sounds | Globale Einstellungen |
+| --------| -----| -----| -----|
+| **Regler** | Preset-Auswahl | Sound-Auswahl | Parameterwert |
+| **Modulationsrad** |  | Sound-Bank | Parameter-Auswahl (derzeit nur Dynamikkurve) |
+
 ![](states_1.jpg)
 
-Mit dem roten...
+Aus dem Modues *Spielen von Presets* gelangt man in den Editier-Modus durch Drücken des roten Tasters, den man mit dem schwarzen Taster wieder verlassen kann.
+
+Wurde das Preset verändert, so wird man gefragt, ob man das Preset speichern möchte. Standardmäßig wird es an die aktuelle Position gespeichert. Mit dem Modulationsrad lässt sich jedoch eine anderes Ziel wählen, das heißt, dass das editierte Preset nicht geändert wird sondern ein anderes Preset überschrieben wird. Der rote Taster bestätigt das Speichern. Mit dem schwarzen Taster lassen sich die Änderungen verwerfen.
+
+Wurde das Preset nicht verändert, so wird man gefragt, ob man das Preset kopieren möchte. Mit dem Modulationsrad lässt sich das Ziel für die Kopieraktion wählen. Der rote Taster bestätigt das Kopieren. Mit dem schwarzen Taster lassen sich die Änderungen verwerfen.
+
 
 ### Editieren eines Preset
 
+Ein Preset besteht aus vielen Parametern, die in Gruppen zusammengefasst sind. Die Gruppe lässt sich mit dem Modulationsrad auswählen. Es gibt diese Gruppen:
+
+- Gemeinsame Parameter
+- Tastatur-Parameter (wenn Tastatur nicht geteilt)
+- Pedal-Parameter (nur im Pedalmodus *Bass*)
+- Parameter für linken Tastaturabschnitt (nur wenn Tastatur geteilt)
+- Parameter für rechten Tastaturabschnitt (nur wenn Tastatur geteilt)
+- Parameter für rechten Tastaturabschnitt (zweite Klangschicht, nur wenn Tastatur geteilt)
+
+Die Parameter in den Gruppen werden mit dem Modulationsrad ausgewählt. Parameterwerte können mit dem Tonhöhenrad oder dem Regler eingestellt werden.
+
 ![](states_2.jpg)
+
+#### Gemeinsame Parameter
+
+- Tastaturtrennung links/rechts (Split-Position). Die Position lässt sich auch durch Drücken einer Taste der Tastatur einstellen. Zum Aufheben der Trennung muss das Modulationsrad oder der Regler bemüht werden.
+- Pedal-Modus: Wahl zwischen Bass- oder Fußschalter-Modus
+- Typ des 1. Effektgeräts (FX1)
+- Typ des 2. Effektgeräts (FX2)
+
+#### Tastatur-Parameter, Pedal-Parameter, Parameter für Tastaturabschnitte
+
+Diese Gruppen enthalten immer denselben Satz an Parametern:
+
+- Sound Bank
+- Sound (MIDI-Programm-Nummer)
+- Transponierung in "Halbton"-Schritten
+- Feinstimmung in Cent-Schritten
+- Relative Lautstärke
+- Stereo-Panorama
+- Hall (1. Effektgerät)
+- Effekt (2. Effektgerät)
+- Tiefpass-Frequenz (Cutoff)
+- Filter-Resonanz
+- Ankling-Geschwindigkeit (Attack)
+- Abkling-Geschwindigkeit vor dem Loslassen der Taste (Decay)
+- Abkling-Geschwindigkeit nach dem Loslassen der Taste (Release)
+- Vibrato-Frequenz (Rate)
+- Vibrato-Stärke (Depth)
+- Vibrato-Verzögerung (Delay)
+- Weitere Parameter zum Zuordnen von Bedienelementen zu MIDI-Controllern.
 
 ### Pedal
 
-Das Pedal dient entweder zum Bassspiel, wenn es im Preset-Modus so definiert ist, oder zur Steuerung der Funktionen, die auf dem Bild gezeigt sind. Soft, Sustain (Haltepedal) und Sostenuto sind von Klavieren her bekannt. Wenn im Preset-Modus ein Tastatursplit aktiv ist, dann können Sustain und Sostenuto für linken und rechten Klaviaturbereich getrennt gesteuert werden. Unterstützung von Wha-Wha, Portamento und Rotorgeschwindigkeit hängen vom gewählten Sound des Ketron SD 2 ab.
+Das Pedal dient entweder zum Bassspiel, wenn es in den Preset-Einstellungen so definiert ist, oder zur Steuerung der Funktionen, die auf dem Bild gezeigt sind. Soft, Sustain (Haltepedal) und Sostenuto sind von Klavieren her bekannt. Wenn im Preset-Modus ein Tastatursplit aktiv ist, dann können Sustain und Sostenuto für linken und rechten Klaviaturbereich getrennt gesteuert werden. Unterstützung von Wha-Wha, Portamento und Rotorgeschwindigkeit hängen vom gewählten Sound des angesteuerten MIDI-Moduls ab.
 
-|Funktionen Pedal|
-| ----------- |
-|![](Pedal.png)|
 
-Mit den linken 4 kurzen Pedalen lassen sich Presets oder Sounds in 10er- oder 1er-Schritten weiterschalten. Eine weitere Funktion ist das zyklische Weiterschalten der Bank im Sound-Modus. Scale Tune ist noch nicht implementiert.
+![](Pedal.png)
+
+Mit den linken 4 kurzen Pedalen lassen sich Presets oder Sounds in 10er- oder 1er-Schritten weiterschalten. Eine weitere Funktion ist das Wechseln der Bank im Sound-Modus.
+
+#### Scale Tune
+
+Mit Hilfe dieses Pedals lassen sich verschiedene Feinstimmungen wählen.
+Wird das Pedal gedrückt, dann wird die gewählte Feinstimmung angezeigt.
+Mit gleichzeitigem Betätigen einer Taste wird eine neue Feinstimmung gewählt.
+Die Feinstimmung wird immer global verwendet, d.h. für das Basspedal und alle Tastatur-Bereiche.
+
+In der europäischen Musik ist es üblich, aufeinanderfolgende Tasten im Frequenzverhältnis 2 hoch (1/12) zu stimmen. Dies ist die Normaleinstellung aller handelsüblichen MIDI-Module und -Synthesizer.
+Durch diese Wahl wird nach 12 Tasten ein Naturtonintervall erreicht: die "Oktave" mit einem Frequenzverhältnis von 2. Andere Naturtonintervalle können nur näherungsweise erreicht werden: die "kleine Terz" (6/5), die "große Terz" (5/4), die "Quarte" (4/3), die "Quinte" (3/2), usw. Während die Quinten und Quarten gut angenähert werden, gibt es bei den Terzen eine deutlich hörbare Schwebung.
+
+Eine andere Näherungsstimmung, die mitteltönige (meantone) Stimmung, teilt die "Oktave" statt in 12 in 31 gleiche Frequenzverhältnisse. Aufeinanderfolgende Tasten sind in einem Vielfachen von 2 hoch (1/31) gestimmt. Mangels Tasten konventioneller Tastaturen lassen sich nur 12 der 31 Töne (je "Oktave") zum Klingen bringen. Die Wahl des Grundtons bestimmt, welche 12 dieser 31 Töne zu hören sind. Der Vorteil dieser Stimmung ist die bessere Näherung an die Naturton-Terzen, während Quarten und Quinten etwas schlechter erreicht werden.
+
+Die Naturtonstimmung (clean) verwendet reine "Oktaven", "Quinten" und "große Terzen" zum Aufbau aller Intervalle ausgehend vom Grundton, d.h. die Frequenzverhältnisse 2, 3/2 und 5/4. Reine Quarten und kleine Terzen werden automatisch erreicht, da z.B. 4/3 = 2 / (3/2).
+
+Die Naturtonstimmung gibt es in einer symmetrischen Variante, bei der der Tritonus "normal" gestimmt bleibt.
+
+Weiter zur Auswahl stehen eine exotischere Naturtonstimmung aufgebaut aus 7/6 ("Septimen") statt 5/4 ("Terzen") und eine aus dem arabischen Kulturraum stammende Stimmung.
 
