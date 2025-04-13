@@ -18,8 +18,6 @@ enum GlobalParameter {
   VelocityMapParam
 };
 
-const byte n_velocity_maps = 7;
-
 struct GlobalSettings {
   byte velocity_map;
   byte reserved2;
@@ -44,7 +42,7 @@ void readGlobals() {
   byte *b = (byte*)&globalSettings;
   for (int i = 0; i < sizeof(GlobalSettings); i++)
     b[i] = EEPROM.read(GlobalSettingsAddress + i);
-  if (globalSettings.velocity_map >= n_velocity_maps)
+  if (globalSettings.velocity_map >= MIDI_CONTROLLER_MAX)
     globalSettings.velocity_map = 0;
 }
 

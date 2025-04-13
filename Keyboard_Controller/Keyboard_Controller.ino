@@ -5,26 +5,11 @@
 #include "SonorityXXL.h"
 #include "Pedal.h"
 #include "Display.h"
+#include "Velocity.h"
 #include "Keyboard_Controller.h"
 #include "Scaletune.h"
 
 const char * MY_NAME = "DEMIAN";
-
-const byte velocity_maps[n_velocity_maps][128] = {{
-#include "normal_min7.h"
-},{
-#include "110_100_min7.h"
-},{
-#include "110_90_min7.h"
-},{
-#include "110_80_min7.h"
-},{
-#include "120_110_min7.h"
-},{
-#include "120_100_min7.h"
-},{
-#include "120_90_min7.h"
-}};
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial3, midi3);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial2, midi2);
@@ -128,7 +113,7 @@ void setup() {
   // V3 XXL needs these 2 * 2.5 seconds to get ready!
     
   readGlobals();
-  sendGlobals();
+  sendGlobals(VelocityMapParam);
   readPresetDefaultChannels(preset_number, currentPreset);
   sendPreset(currentPreset);
   displayPreset(currentPreset, preset_number);
@@ -388,7 +373,7 @@ void process(Event event, int value) {
             if (handlePitchWheelEvent(value, mini, maxi, &int_param_value)) {
               *param_value = map_to_byte(global_parameter, int_param_value);
               displayGlobalParameter(global_parameter, *param_value);
-              sendGlobals();
+              sendGlobals(global_parameter);
             }
           }
           return;
@@ -399,7 +384,7 @@ void process(Event event, int value) {
             int_param_value = mini + value * range / (MIDI_CONTROLLER_MAX+1) ;
             *param_value = map_to_byte(global_parameter, int_param_value);
             displayGlobalParameter(global_parameter, *param_value);
-            sendGlobals();
+            sendGlobals(global_parameter);
           }
           else {
             sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
@@ -682,17 +667,6 @@ const char * toString(GlobalParameter p) {
  */ 
 void displayGlobalParameter(GlobalParameter p, byte value) {
   display(line2left, toString(p));
-  if (p == VelocityMapParam) {
-    switch (value) {
-      case 1: display(line2right, "110 -> 100"); return;
-      case 2: display(line2right, "110 -> 90"); return;
-      case 3: display(line2right, "110 -> 80"); return;
-      case 4: display(line2right, "120 -> 110"); return;
-      case 5: display(line2right, "120 -> 100"); return;
-      case 6: display(line2right, "120 -> 90"); return;
-      default: display(line2right, "normal"); return;
-    }
-  }
   display(line2right, value);
 }
 
@@ -1041,7 +1015,7 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
 /**
  * Sends all global MIDI settings: equalizers, ...
  */
-void sendGlobals() {
+void sendGlobals(GlobalParameter p) {
   SoXXLMessage msg;
   // reset main outputs EQ
   msg = toGlobalNRPNMsg(MainEQLowGain, MIDI_CONTROLLER_MEAN);
@@ -1061,6 +1035,10 @@ void sendGlobals() {
   midi3.sendSysEx(msg.length, msg.buff, true);
   msg = toGlobalNRPNMsg(AuxEQHighGain, MIDI_CONTROLLER_MEAN);
   midi3.sendSysEx(msg.length, msg.buff, true); 
+  switch (p) {
+    case VelocityMapParam:
+      return init_velocity_map(globalSettings.velocity_map);
+  }
 }
 
 /**
@@ -1225,11 +1203,6 @@ void setParamValuePointer(SoundParameter p) {
 void getMinMaxRange(GlobalParameter p, int & mini, int & maxi, int & range) {
   mini = 0;
   range = MIDI_CONTROLLER_MAX + 1;
-  switch (p) {
-    case VelocityMapParam:
-      range = n_velocity_maps;
-      break;
-  }
   maxi = mini + range - 1;
 }
 
@@ -1522,11 +1495,7 @@ void externalControl(int value) {
 void handleNoteOn(byte channel, byte note, byte velocity)
 {
   //digitalWrite(led_pin, LOW);
-  velocity = velocity_maps[globalSettings.velocity_map][velocity];
-  if (velocity == 0 && scaletuneState == waitForScaletuneKey) {
-    processScaletune(note);
-    sendScaletune(current_pitches);
-  }
+  velocity = velocity_map[velocity];
   switch (state) {
     case playingSound: 
       midi3.sendNoteOn(note, velocity, sound_channel);
