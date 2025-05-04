@@ -1,3 +1,4 @@
+#include "midi_Defs.h"
 // max. value of a MIDI controller
 const byte MIDI_CONTROLLER_MAX = 127;
 const byte MIDI_CONTROLLER_MEAN = 64;
@@ -59,28 +60,34 @@ void saveGlobals() {
 }
 
 /*--------- sound presets ---------*/
-const int n_switch_assignable_ctrls = 6;
-enum SwitchAssignableController {
-  NoSwitch = invalid,
+const int n_switch_assignable_ctrls = 5;
+enum SwitchController {
+  NoSwitchCtrl = invalid,
   Sustain = midi::Sustain, // values 00 or 7f
   Sostenuto = midi::Sostenuto, // values 00 or 7f
   Soft = midi::SoftPedal, // values 00 or 7f
-  WhaWha = 0x54, // values 00 or 7f
-  Rotor = 0x1e, // values 00 off or default?, 40 slow, 7f fast
+  Portamento = midi::Portamento // values 00 or 7f
 };
 
-const int n_wheel_assignable_ctrls = 6;
-enum WheelAssignableController {
-  NoWheel = invalid,
+const int n_continuous_assignable_ctrls = 8;
+enum ContinuousController {
+  NoContCtrl = invalid,
   Modulation = midi::ModulationWheel,
-  WhaWhaAmount = 0x55,
-  CutoffFrequency = 0x60, // NRPN, pseudo controller number!
-  Resonance = 0x61, // NRPN, pseudo controller number! 
-  Pitch = 0xfe // must be the last, only offered for pitch wheel
+  CutoffFrequency = 0x4A,
+  Resonance = 0x47,
+  PortamentoTime = midi::PortamentoTime,
+  PortamentoControl = midi::PortamentoControl,
+  Expression = midi::ExpressionController,
+  InverseExpression = 128 + midi::ExpressionController // emulated, for crossfading
+};
+
+const int n_pitch_wheel_assignable_ctrls = 2;
+enum PitchWheelController {
+  NoPitchCtrl = invalid,
+  Pitch = 0xfe
 };
 
 const int n_presets = 35; // 116 bytes/preset * 35 presets = 4060 bytes EEPROM occupied by presets
-const int specialPreset = n_presets - 1; // external Juno-DS
 const int n_sounds_per_preset = 4; // foot + left hand + right hand [+ right layered]
 
 // start address of preset storage area in EEPROM
@@ -113,7 +120,7 @@ public:
   byte mod_wheel_ctrl_no;
   byte pitch_wheel_ctrl_no;
   byte ext_switch_1_ctrl_no;
-  byte ext_switch_2_ctrl_no;
+  byte ext_pedal_ctrl_no;
   byte channel; // not [yet] adjustable but comfortable here
 };
 
@@ -183,10 +190,10 @@ void defaultSound(Sound & sound) {
   sound.vibrato_rate = MIDI_CONTROLLER_MEAN;
   sound.vibrato_depth = 0;
   sound.vibrato_delay = MIDI_CONTROLLER_MEAN;
-  sound.mod_wheel_ctrl_no = NoWheel; 
-  sound.pitch_wheel_ctrl_no = NoWheel; 
-  sound.ext_switch_1_ctrl_no = NoSwitch; 
-  sound.ext_switch_2_ctrl_no = NoSwitch; 
+  sound.mod_wheel_ctrl_no = NoContCtrl; 
+  sound.pitch_wheel_ctrl_no = NoPitchCtrl; 
+  sound.ext_switch_1_ctrl_no = NoSwitchCtrl; 
+  sound.ext_pedal_ctrl_no = NoContCtrl; 
 }
 
 void defaultPreset(Preset & preset) {
@@ -207,7 +214,7 @@ void defaultPreset(Preset & preset) {
   preset.left.mod_wheel_ctrl_no = Modulation; 
   preset.left.pitch_wheel_ctrl_no = Pitch;
   preset.left.ext_switch_1_ctrl_no = Sustain; 
-  preset.left.ext_switch_2_ctrl_no = Sostenuto; 
+  preset.left.ext_pedal_ctrl_no = NoContCtrl; 
 
   defaultSound(preset.right);
   preset.right.bank = Piano;
@@ -216,7 +223,7 @@ void defaultPreset(Preset & preset) {
   preset.right.mod_wheel_ctrl_no = Modulation; 
   preset.right.pitch_wheel_ctrl_no = Pitch;
   preset.right.ext_switch_1_ctrl_no = Sustain; 
-  preset.right.ext_switch_2_ctrl_no = Sostenuto; 
+  preset.right.ext_pedal_ctrl_no = NoContCtrl; 
 
   defaultSound(preset.layer); // optional right layer sound
   preset.layer.program_number = 48; // String Ensemble
@@ -224,7 +231,7 @@ void defaultPreset(Preset & preset) {
   preset.layer.mod_wheel_ctrl_no = Modulation; 
   preset.layer.pitch_wheel_ctrl_no = Pitch;
   preset.layer.ext_switch_1_ctrl_no = Sustain; 
-  preset.layer.ext_switch_2_ctrl_no = Sostenuto; 
+  preset.layer.ext_pedal_ctrl_no = Expression; 
 }
 
 /*--------------------------------- state event machine ---------------------------------*/
@@ -244,14 +251,14 @@ enum CommonParameter {
   FX2TypeParam
 };
 
-const int n_sound_parameters = 22;
+const int n_sound_parameters = 20;
 
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, FinetuneParam, VolumeParam, PanParam, 
   ReverbSendParam, EffectsSendParam, CutoffParam, ResonanceParam,
   AttackTimeParam, DecayTimeParam, ReleaseTimeParam, 
   VibratoRateParam, VibratoDepthParam, VibratoDelayParam,
-  ModAssign, PitchAssign, Switch1Assign, Switch2Assign
+  ModAssign, PitchAssign, Switch1Assign, /*Switch2Assign,*/ ControlPedalAssign
 };
 
 enum State {

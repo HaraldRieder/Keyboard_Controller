@@ -22,9 +22,9 @@ const int ext_switch_1_pin = 53;
 int ext_switch_1_val;
 boolean ext_switch_1_opener = false;
 /* external switch 2 (pedal) pin, last known value and switch type opener/closer */
-const int ext_switch_2_pin = 51;
-int ext_switch_2_val;
-boolean ext_switch_2_opener = false;
+//const int ext_switch_2_pin = 51;
+//int ext_switch_2_val;
+//boolean ext_switch_2_opener = false;
 /* external controller pedal, same socket as external switch 2 */
 const int external_control_pin = A7; 
 const int external_control_maxval = 885; // with 68k popup and 450k controller pedal (log.)
@@ -83,7 +83,7 @@ void setup() {
 
   pinMode(led_pin, OUTPUT);
   pinMode(ext_switch_1_pin, INPUT_PULLUP);
-  pinMode(ext_switch_2_pin, INPUT); // ext. 68k pullup, allow 470k logarithmic controller pedal
+  //pinMode(ext_switch_2_pin, INPUT); // ext. 68k pullup, allow 470k logarithmic controller pedal
   pinMode(push_btn_enter_pin, INPUT_PULLUP);
   pinMode(push_btn_exit_pin, INPUT_PULLUP);
   
@@ -99,16 +99,18 @@ void setup() {
 
   ext_switch_1_val = digitalRead(ext_switch_1_pin);
   ext_switch_1_opener = (ext_switch_1_val == LOW);
-  ext_switch_2_val = digitalRead(ext_switch_2_pin);
-  ext_switch_2_opener = (ext_switch_2_val == LOW);
+  //ext_switch_2_val = digitalRead(ext_switch_2_pin);
+  //ext_switch_2_opener = (ext_switch_2_val == LOW);
 
   display(line1, MY_NAME);
   char b[30];
   sprintf(b, "%i bytes free", freeMemory());
   display(line2, b);
   delay(2500);
-  display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
-  display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
+  //display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
+  //display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
+  display(line1, "external switch:");
+  display(line2, ext_switch_1_opener?"opener":"closer");
   delay(2500);
   // V3 XXL needs these 2 * 2.5 seconds to get ready!
     
@@ -168,10 +170,10 @@ void loop() {
         handleExtSwitch1(ext_switch_1_val = inval);
       break;
     case 3:
-      inval = digitalRead(ext_switch_2_pin);
-      if (inval != ext_switch_2_val)
-        handleExtSwitch2(ext_switch_2_val = inval);
-      break;
+      //inval = digitalRead(ext_switch_2_pin);
+      //if (inval != ext_switch_2_val)
+      //  handleExtSwitch2(ext_switch_2_val = inval);
+      //break;
     case 4:
       inval = analogRead(pitch_wheel_pin);
       if (inval > pitch_wheel_val) {
@@ -630,20 +632,15 @@ void process(Event event, int value) {
           return;
         case pitchWheel:
           // destination preset select
-          // (dirty hack: don't offer the last preset as destination)
-          if (preset_number < specialPreset) {
-            if (handlePitchWheelEvent(value, 0, specialPreset - 1, &preset_number)) {
-              displayDestinationPreset(preset_number);
-            }
+          if (handlePitchWheelEvent(value, 0, n_presets - 1, &preset_number)) {
+            displayDestinationPreset(preset_number);
           }
           return;
         case modWheel:
-          if (preset_number < specialPreset) {
-            value = value * (n_presets - 1/*special*/) / (MIDI_CONTROLLER_MAX+1);
-            if (value != preset_number) {
-              preset_number = value;
-              displayDestinationPreset(preset_number);
-            }
+          value = value * n_presets / (MIDI_CONTROLLER_MAX+1);
+          if (value != preset_number) {
+            preset_number = value;
+            displayDestinationPreset(preset_number);
           }
           return;
       }  
@@ -695,23 +692,17 @@ void displaySound(SoXXLBank bank, int number) {
  * Displays program names of right, left, foot in the 3 other areas of the LCD.
  */ 
 void displayPreset(const Preset & preset, int number) {
-  if (preset_number == specialPreset) {
-    display(line1, "External Juno-DS");
-    display(line2, "transp. l/r = 0/-12");
+  display(line1, "Preset", number+1);
+  if (preset.pedal_mode == BassPedal) 
+    display(line1right, toString((SoXXLBank)(preset.foot.bank), preset.foot.program_number));
+  if (preset.split_point != invalid) {
+    display(line2left, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
+    display(line2right, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
   }
-  else {
-    display(line1, "Preset", number+1);
-    if (preset.pedal_mode == BassPedal) 
-      display(line1right, toString((SoXXLBank)(preset.foot.bank), preset.foot.program_number));
-    if (preset.split_point != invalid) {
-      display(line2left, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
-      display(line2right, toString((SoXXLBank)(preset.right.bank), preset.right.program_number));
-    }
-    else if (preset.left.bank != invalid) 
-      display(line2, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
-    else 
-      display(line2, "Invalid Preset!");
-  }
+  else if (preset.left.bank != invalid) 
+    display(line2, toString((SoXXLBank)(preset.left.bank), preset.left.program_number));
+  else 
+    display(line2, "Invalid Preset!");
 }
 
 /**
@@ -730,8 +721,6 @@ void sendSound(SoXXLBank bank, midi::DataByte program_number, midi::Channel chan
  * Sends sound settings of 1 preset part to MIDI.
  */ 
 void sendSound(const Sound & sound, midi::Channel channel) {
-  if (preset_number == specialPreset) 
-    return; // dirty hack for external Juno-D
   sendSound((SoXXLBank)sound.bank, sound.program_number, channel);
   sendSoundParameter(TransposeParam, sound.transpose, channel);
   sendSoundParameter(FinetuneParam, sound.finetune, channel);
@@ -764,24 +753,6 @@ void sendVolumes(const Preset & preset, int value) {
 }
 
 /**
- * When changing between presets with and without split point
- * make sure that the uncontrollable channel is reset to
- * normal volume (max. expression value).
- */
-void sendExpression(const Preset & preset) {
-  if (preset.split_point == invalid) {
-    midi3.sendControlChange(midi::ExpressionController, external_val, left_channel);
-    // reset right channel, not controllable (any more)
-    midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX, right_channel);
-  }
-  else {
-    // reset left channel, not controllable (any more)
-    midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX, left_channel);
-    midi3.sendControlChange(midi::ExpressionController, external_val, right_channel);
-  }
-}
-
-/**
  * Sends all sound settings of the given preset to MIDI.
  */
 void sendPreset(const Preset & preset) {
@@ -795,7 +766,6 @@ void sendPreset(const Preset & preset) {
   }
   sendSound(preset.left, left_channel);
   sendVolumes(preset, volume_val);
-  sendExpression(preset);
 }
 
 /**
@@ -862,24 +832,31 @@ byte map_to_byte(SoundParameter p, int value) {
   switch (p) {
     case BankParam:
       return toSoXXLBank(value);
-    case ModAssign: case PitchAssign:
+    case ModAssign: 
+    case ControlPedalAssign:
       switch (value) {
         case 1: return Modulation;
         case 2: return CutoffFrequency;
         case 3: return Resonance;
-        case 4: return WhaWhaAmount;
-        case 5: return Pitch;
+        case 4: return PortamentoTime;
+        case 5: return PortamentoControl;
+        case 6: return Expression;
+        case 7: return InverseExpression;
       }
-      return NoWheel;
-    case Switch1Assign: case Switch2Assign:
+      return NoContCtrl;
+    case PitchAssign:
+      switch (value) {
+        case 1: return Pitch;
+      }
+      return NoPitchCtrl;
+    case Switch1Assign: 
       switch (value) {
         case 1: return Sustain;
         case 2: return Sostenuto;
         case 3: return Soft;
-        case 4: return WhaWha;
-        case 5: return Rotor;
+        case 4: return Portamento;
       }
-      return NoSwitch;
+      return NoSwitchCtrl;  
     default:
       return (byte)value;
   }
@@ -889,22 +866,29 @@ int map_from_byte(SoundParameter p, byte value) {
   switch (p) {
     case BankParam:
       return toIndex((SoXXLBank)value);
-    case ModAssign: case PitchAssign:
-      switch ((WheelAssignableController)value) {
+    case ModAssign: 
+    case ControlPedalAssign:
+      switch ((ContinuousController)value) {
         case Modulation: return 1;
         case CutoffFrequency: return 2;
         case Resonance: return 3;
-        case WhaWhaAmount: return 4;
-        case Pitch: return 5;
+        case PortamentoTime: return 4;
+        case PortamentoControl: return 5;
+        case Expression: return 6;
+        case InverseExpression: return 7;
       }
       return 0;
-    case Switch1Assign: case Switch2Assign:
+    case PitchAssign:
+      switch ((PitchWheelController)value) {
+        case Pitch: return 1;
+      }
+      return 0;
+    case Switch1Assign:
       switch (value) {
         case Sustain: return 1;
         case Sostenuto: return 2;
         case Soft: return 3;
-        case WhaWha: return 4;
-        case Rotor: return 5;
+        case Portamento: return 4;
       }
       return 0;
     default:
@@ -912,25 +896,33 @@ int map_from_byte(SoundParameter p, byte value) {
   }
 }
 
-const char * toString(WheelAssignableController c, boolean isPitchWheel) {
+const char * toString(ContinuousController c) {
   switch (c) {
-    case NoWheel: return NONE;
+    case NoContCtrl: return NONE;
     case Modulation: return "modulation";
-    case WhaWhaAmount: return "wha-wha";
-    case CutoffFrequency: return "cutoff f.";
+    case CutoffFrequency: return "cutoff frq";
     case Resonance: return "resonance"; 
+    case PortamentoTime: return "portm.time";
+    case PortamentoControl: return "portamento"; 
+    case Expression: return "expression"; 
+    case InverseExpression: return "inv.expres"; 
+  }
+}
+
+const char * toString(PitchWheelController c) {
+  switch (c) {
+    case NoPitchCtrl: return NONE;
     case Pitch: return "pitch bend";
   }
 }
 
-const char * toString(SwitchAssignableController c) {
+const char * toString(SwitchController c) {
   switch (c) {
-    case NoSwitch: return NONE;
+    case NoSwitchCtrl: return NONE;
     case Sustain: return "sustain";
     case Sostenuto: return "sostenuto";
     case Soft: return "soft";
-    case WhaWha: return "wha-wha";
-    case Rotor: return "rotor spd.";
+    case Portamento: return "portamento";
   }
 }
 
@@ -963,6 +955,7 @@ const char * toString(SoXXLEffectsType t) {
 }
 
 void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
+  //Serial.print(p);Serial.print(": ");Serial.println(value);
   switch (p) {
     case BankParam: 
       return display(line2, "Sound bank:",toString((SoXXLBank)value));
@@ -1002,13 +995,15 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
     case VibratoDelayParam:    
       return display(line2, "Vibrato delay:", value);
     case ModAssign:
-      return display(line2, "Mod.wheel>", toString((WheelAssignableController)value, false));
+      return display(line2, "Mod.wheel>", toString((ContinuousController)value));
     case PitchAssign:
-      return display(line2, "Ptch.whl.>", toString((WheelAssignableController)value, true));
+      return display(line2, "Ptch.whl.>", toString((PitchWheelController)value));
     case Switch1Assign:
-      return display(line2, "Switch 1>", toString((SwitchAssignableController)value));
-    case Switch2Assign:
-      return display(line2, "Switch 2>", toString((SwitchAssignableController)value));
+      return display(line2, "Ext.swtch>", toString((SwitchController)value));
+    case ControlPedalAssign:
+      return display(line2, "Ext.pedal>", toString((ContinuousController)value));
+    default:
+      return display(line2, "?");
   }
 }
 
@@ -1194,8 +1189,8 @@ void setParamValuePointer(SoundParameter p) {
     case Switch1Assign:
       param_value = &(editedSound->ext_switch_1_ctrl_no);
       break;
-    case Switch2Assign:
-      param_value = &(editedSound->ext_switch_2_ctrl_no);
+    case ControlPedalAssign:
+      param_value = &(editedSound->ext_pedal_ctrl_no);
       break;
   }
 }
@@ -1214,13 +1209,13 @@ void getMinMaxRange(SoundParameter p, int & mini, int & maxi, int & range) {
       range = n_SoXXL_banks;
       break;
     case ModAssign:
-      range = n_wheel_assignable_ctrls - 1; // without pitch bend
+    case ControlPedalAssign:
+      range = n_continuous_assignable_ctrls;
       break;
     case PitchAssign:
-      range = n_wheel_assignable_ctrls; // with pitch bend
+      range = n_pitch_wheel_assignable_ctrls;
       break;
     case Switch1Assign:  
-    case Switch2Assign:
       range = n_switch_assignable_ctrls; 
       break;
   }  
@@ -1311,41 +1306,11 @@ void handleExtSwitch1(int inval) {
     default:
       for (int i = 0; i < n_sounds_per_preset; i++) {
         Sound * s = currentPresetSounds[i];
-        if (s->ext_switch_1_ctrl_no != NoSwitch) {
-          midi::DataByte ctrlval = off ? (s->ext_switch_1_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX; 
-          if (preset_number == specialPreset) {
-            // dirty hack, last preset controls my external Juno-D
-            midi3.sendControlChange(s->ext_switch_1_ctrl_no, ctrlval, s->channel + 1);
-          }
+        if (s->ext_switch_1_ctrl_no != NoSwitchCtrl) {
+          midi::DataByte ctrlval = off ? 0 : MIDI_CONTROLLER_MAX; 
           midi3.sendControlChange(s->ext_switch_1_ctrl_no, ctrlval, s->channel);
         }
       }
-  }
-}
-
-/**
- * Sends sostenuto on/off depending on the 
- * input voltage and on whether the external
- * switch (in the foot pedal) is an opener or closer.
- */
-void handleExtSwitch2(int inval) {
-  boolean off = ext_switch_2_opener ? (inval == LOW) : (inval == HIGH);
-  switch (state) {
-    case playingSound:
-      midi3.sendControlChange(midi::Sostenuto, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
-      break;
-    default:
-      for (int i = 0; i < n_sounds_per_preset; i++) {
-        Sound * s = currentPresetSounds[i];
-        if (s->ext_switch_2_ctrl_no != NoSwitch) {
-          midi::DataByte ctrlval = off ? (s->ext_switch_2_ctrl_no==Rotor?MIDI_CONTROLLER_MEAN:0) : MIDI_CONTROLLER_MAX;
-          if (preset_number == specialPreset) {
-            // dirty hack, last preset controls my external Juno-D
-            midi3.sendControlChange(s->ext_switch_2_ctrl_no, ctrlval, s->channel + 1);
-          }
-          midi3.sendControlChange(s->ext_switch_2_ctrl_no, ctrlval, s->channel);
-        }
-      }  
   }
 }
 
@@ -1401,19 +1366,11 @@ void handlePitchWheel(unsigned int inval) {
         for (int i = 0; i < n_sounds_per_preset; i++) {
           Sound * s = currentPresetSounds[i];
           switch (s->pitch_wheel_ctrl_no) {
-            case NoWheel: 
-              break;
-            case CutoffFrequency:
-              sendSoundParameter(CutoffParam, ctrlval, s->channel);
-              break;
-            case Resonance:
-              sendSoundParameter(ResonanceParam, ctrlval, s->channel);
-              break;
             case Pitch:
               midi3.sendPitchBend(pitch, s->channel);
               break;
-            default: 
-              midi3.sendControlChange(s->mod_wheel_ctrl_no, ctrlval, s->channel);
+            default:
+              break;
           }
         }
         break;      
@@ -1460,13 +1417,16 @@ void handleModWheel(unsigned int inval) {
         for (int i = 0; i < n_sounds_per_preset; i++) {
           Sound * s = currentPresetSounds[i];
           switch (s->mod_wheel_ctrl_no) {
-            case NoWheel: 
+            case NoContCtrl: 
               break;
             case CutoffFrequency:
               sendSoundParameter(CutoffParam, modulation, s->channel);
               break;
             case Resonance:
               sendSoundParameter(ResonanceParam, modulation, s->channel);
+              break;
+            case InverseExpression:
+              midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX - modulation, s->channel);
               break;
             default: 
               midi3.sendControlChange(s->mod_wheel_ctrl_no, modulation, s->channel);
@@ -1482,11 +1442,30 @@ void handleModWheel(unsigned int inval) {
 /*------------------------------- external controller pedal --------------------------*/
 
 void externalControl(int value) {
-  if (currentPreset.split_point == invalid)
-    midi3.sendControlChange(midi::ExpressionController, value, left_channel);
-  else {
-    midi3.sendControlChange(midi::ExpressionController, value, right_channel);
-    midi3.sendControlChange(midi::ExpressionController, value, layer_channel);
+  switch (state) {
+      case playingSound:
+        midi3.sendControlChange(midi::ExpressionController, value, sound_channel);
+        break;
+      case playingPreset:
+        for (int i = 0; i < n_sounds_per_preset; i++) {
+          Sound * s = currentPresetSounds[i];
+          switch (s->ext_pedal_ctrl_no) {
+            case NoContCtrl: 
+              break;
+            case CutoffFrequency:
+              sendSoundParameter(CutoffParam, value, s->channel);
+              break;
+            case Resonance:
+              sendSoundParameter(ResonanceParam, value, s->channel);
+              break;
+            case InverseExpression:
+              midi3.sendControlChange(midi::ExpressionController, MIDI_CONTROLLER_MAX - value, s->channel);
+              break;
+            default: 
+              midi3.sendControlChange(s->ext_pedal_ctrl_no, value, s->channel);
+          }
+        }
+        break;
   }
 }
 
@@ -1504,25 +1483,12 @@ void handleNoteOn(byte channel, byte note, byte velocity)
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOn(note, velocity, left_channel);
       else {
-        if (preset_number == specialPreset) {
-          // dirty hack, last preset controls my external Juno-D
-          byte n = note > currentPreset.split_point ? note - 12 : note; 
-          if (note > currentPreset.split_point) {
-            midi3.sendNoteOn(n, velocity, right_channel);
-            midi3.sendNoteOn(n, velocity, right_channel + 1);
-          }
-          else {
-            midi3.sendNoteOn(n, velocity, left_channel);
-          }
-        } 
+        if (note > currentPreset.split_point) {
+          midi3.sendNoteOn(note, velocity, right_channel);
+          midi3.sendNoteOn(note, velocity, layer_channel);
+        }
         else {
-          if (note > currentPreset.split_point) {
-            midi3.sendNoteOn(note, velocity, right_channel);
-            midi3.sendNoteOn(note, velocity, layer_channel);
-          }
-          else {
-            midi3.sendNoteOn(note, velocity, left_channel);
-          }
+          midi3.sendNoteOn(note, velocity, left_channel);
         }
       }
       // handle note on with velocity 0 like note off
@@ -1547,25 +1513,12 @@ void handleNoteOff(byte channel, byte note, byte velocity)
       if (currentPreset.split_point == invalid)
         midi3.sendNoteOff(note, velocity, left_channel);
       else {
-        if (preset_number == specialPreset) {
-          // dirty hack, last preset controls my external Juno-D
-          byte n = note > currentPreset.split_point ? note - 12 : note; 
-          if (note > currentPreset.split_point) {
-            midi3.sendNoteOff(n, velocity, right_channel);
-            midi3.sendNoteOff(n, velocity, right_channel + 1);
-          }
-          else {
-            midi3.sendNoteOff(n, velocity, left_channel);
-          }
+        if (note > currentPreset.split_point) {
+          midi3.sendNoteOff(note, velocity, right_channel);
+          midi3.sendNoteOff(note, velocity, layer_channel);
         } 
         else {
-          if (note > currentPreset.split_point) {
-            midi3.sendNoteOff(note, velocity, right_channel);
-            midi3.sendNoteOff(note, velocity, layer_channel);
-          } 
-          else {
-            midi3.sendNoteOff(note, velocity, left_channel);
-          }
+          midi3.sendNoteOff(note, velocity, left_channel);
         }
       }
       if (state != playingPreset)
@@ -1613,10 +1566,8 @@ void handlePedal(int pedal, boolean on) {
       change_preset_or_sound_by = -10;
       break;
     case 2:
-      // wha-wha on/off
-      controller = WhaWha;
-      right_text = "Wha-Wha";
-      break;
+      // reserved
+      return;
     case 3:
       change_preset_or_sound_by = -1;
       break;
@@ -1687,10 +1638,11 @@ void handlePedal(int pedal, boolean on) {
       return;
     case 14:
       // rotor fast/slow (not off)
-      controller = Rotor;
-      right_text = on ? "Rot. fast":"Rot. slow";
-      low_value = 0x40;
-      break;
+      //controller = Rotor;
+      //right_text = on ? "Rot. fast":"Rot. slow";
+      //low_value = 0x40;
+      //break;
+      return;
     }
     if (controller > 0) {
       switch (state) {
@@ -1708,8 +1660,6 @@ void handlePedal(int pedal, boolean on) {
                 if (right_text[0] != 'l')
                   break; // not meant for left area
               case midi::SoftPedal:
-              case Rotor:
-              case WhaWha:
                 midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, left_channel);
             }
             switch (controller) {
@@ -1718,12 +1668,7 @@ void handlePedal(int pedal, boolean on) {
                 if (right_text[0] == 'l')
                   break; // not meant for right area
               case midi::SoftPedal:
-              case Rotor:
               case midi::Portamento:
-                if (preset_number == specialPreset) {
-                  // dirty hack, last preset controls my external Juno-D
-                  midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel + 1);
-                }
                 midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, right_channel);
             }
           }
@@ -1760,7 +1705,7 @@ void handlePedal(int pedal, boolean on) {
       switch (state) {
           case playingSound:
           case playingPreset:
-            display(line1right, (on || controller == Rotor) ? right_text : "");
+            display(line1right, on ? right_text : "");
       }
     }
   }
