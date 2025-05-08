@@ -18,7 +18,10 @@ Zur Bedienung der Steuerung dienen ein Regler mit benachbartem Schalter, 2 Taste
 
 Der Audio-Ausgang des Ketron SD-2 sowie 2 externe Stereo-Eingänge (4 x Cinch) werden über den selbstgebauten Mischer geschleift zum externen Audio-Ausgang (2 x 6,3 mm Klinke).
 
-Der Kopfhörer-Ausgang des Ketron SD-2 ist mit dem Audio-Eingang des GT-2 mini verbunden, so dass das SD-2 über Kopfhörer gehört werden kann. Das Metronom des GT-2 mini kann auf diese Art benutzt werden. Das GT-2 mini verfälscht das Eingangssignal stark. Viel Brillanz geht verloren. Während man sonst meint bei den E-Pianos des SD-2 hören zu können wie die Metallzungen angeschlagen werden, so ist dieser Eindruck futsch, sobald die Elektronik des GT-2 mini betreten wird. Aus diesem Grund und aufgrund der billigen Klänge des GT-2 mini wurde darauf verzichtet, sein Audio-Signal extra nach draußen zu legen. Es steht natürlich an seinen integrierten Kopfhörerbuchsen zur Verfügung.
+Der Kopfhörer-Ausgang des Ketron SD-2 ist mit dem Audio-Eingang des GT-2 mini verbunden, so dass das SD-2 über Kopfhörer gehört werden kann. Das Metronom des GT-2 mini kann auf diese Art benutzt werden. Das GT-2 mini verfälscht das Eingangssignal stark. Viel Brillanz geht verloren. Während man sonst meint bei den E-Pianos des SD-2 hören zu können, wie die Metallzungen angeschlagen werden, so ist dieser Eindruck futsch, sobald die Elektronik des GT-2 mini betreten wird. Aus diesem Grund und aufgrund der billigen Klänge des GT-2 mini wurde darauf verzichtet, sein Audio-Signal extra nach draußen zu legen. Es steht natürlich an seinen integrierten Kopfhörerbuchsen zur Verfügung.
+
+2024 wurde das Ketron SD-2 ausgemustert. Man konnte mit dem Modul keine Tremolos spielen, weil es dann Noten-Aussetzer bekam, und ein Software-Update war nicht mehr zu erwarten. Seither ist ein V3 Sonority XXL verbaut. Damit kann man sogar Tremolos spielen, so wie auf jedem mechanischen
+Klavier oder Digitalpiano, das nicht von Ketron stammt.
 
 ## Arduino Mega 2560 mit Peripherie
 
@@ -40,15 +43,26 @@ Das Pedal wird mit einem Sub-D Stecker an das Pianogehäuse angeschlossen.
 
 _Der Digitalteil wurde ab Herbst 2015 nach und nach in Betrieb genommen. Im Frühjahr 2016 zeigten sich nach längerem Betrieb erstmals lustige Effekte: Aussetzer, falsche Tonhöhen, ganz andere Klangfarben als die eingestellte. So hören sich typischerweise MIDI-Bitfehler an, und da es in kaltem Zustand nach dem Einschalten nie Fehler gab, war klar, dass es ein Temperatureffekt sein musste. Der 220 Ohm Widerstand am MIDI-Eingang war etwas zu groß bemessen für den verwendeten PC 817 Optokoppler. Die Reparatur erfolgte durch Austausch des PC 817 gegen ein anderes Exemplar. Alternativ hätte man den Widerstand verkleinern können._
 
-Die Handräder werden zwar von relativ niederohmigen Potentiometern abgegriffen, sind allerdings über lange Leitungen mit der Steuerung verbunden. Die 470 nF Glättungskondensatoren sind deswegen tatsächlich erforderlich! Ohne sie bekäme die Software von der Hardware nerviges Gezappel zu hören.
+Die Handräder werden zwar von relativ niederohmigen Potentiometern abgegriffen, sind allerdings über lange Leitungen mit der Steuerung verbunden. Die 470 nF Glättungskondensatoren sind deswegen tatsächlich erforderlich! Ohne sie bekäme die Software von der Hardware nerviges Gezappel.
 
-Für die internen Taster und externen Schalter werden die im Arduino integrierten Pullup-Widerstände ausgenutzt. Damit gab es noch nie ein falsches Signal.
+Für die internen Taster und externen Schalter werden Pullup-Widerstände eingesetzt. Damit gab es noch nie ein falsches Signal.
 
-2019 wurden noch ein Potentiometer und ein Schalter auf der rechten Seite der Frontblende hinzugefügt. Beide sind an analoge Eingänge angeschlossen, der Schalter mit einem 22k Pulldown Widerstand. Damit sind immer noch 4 analoge Eingänge unbeschaltet.
+Ein externer Anschluss ist ein Zwitter. Sowohl ein analoger (A7) als auch ein digitaler Eingang (51) teilen sich ihn.
+Während sonst Arduino-interne Pullup-Widerstände zum Einsatz kommen, ist hier ein externer Pullup-Widerstand Rp = 68k verbaut.
+Der Grund: es sollte ein vorhandenes Schwellerpedal angeschlossen werden. Das Schwellerpedal enthält ein 450k logarithmierendes Poti.
+Die Software soll nicht linearisieren müssen. Das Poti liefert einen exponentiell vom Weg x abhängigen Widerstand R(x).
+Durch den Spannungsteiler aus Pullup Rp und R ergibt sich eine Eingangsspannung U(R) ~ R/(R+Rp).
+Durch geschickte Wahl von Rp kann man die verketteten nichtlinearen Funktionen R(x) und U(R)
+gegeneinander ausspielen und so die Gesamtfunktion U(R(x)) = U(x) einigermaßen linear bekommen.
+Die Entscheidung, ob der Anschluss für kontinuierliche oder diskrete MIDI Controller oder beide Arten zugleich verwendet wird, fällt erst in der Software.
+
+2019 wurden ein Potentiometer und ein Schalter auf der rechten Seite der Frontblende hinzugefügt. Beide sind an analoge Eingänge angeschlossen, der Schalter mit einem 22k Pulldown Widerstand.
+
+Es sind noch 3 analoge Eingänge unbeschaltet.
 
 Das nächste Bild zeigt den Teil der Elektronik, der am aufklappbaren Deckel des Pianogehäuses hängt:
 
-- links Ketron SD-2 Sound-Modul
+- links noch mit Ketron SD-2 Sound-Modul
 - rechts Steuerung mit Arduino Board. Der Klinkenstecker kommt von den beiden Mono-Klinkenbuchsen für die externen Schalter. Der graue Stecker rechts führt zur Pedalanschlussbuchse (Sub-D).
 - oben 2x20 zeilige LCD-Anzeige
 - rechts neben dem Arduino pressspänerne Leere: später hat sich an diese Stelle der Audio-Mischer hinzugesellt.
