@@ -77,7 +77,7 @@ void readPresetDefaultChannels(int presetNumber, Preset & preset) {
 }
 
 void setup() {
-  Serial.begin(9600); // debugging
+  Serial.begin(/*9600*/500000); // debugging
   // set up the LCD's number of columns and rows: 
   lcd.begin(lcd_columns, lcd_rows);
 
@@ -107,9 +107,9 @@ void setup() {
   sprintf(b, "%i bytes free", freeMemory());
   display(line2, b);
   delay(2500);
-  //display(line1, "ext.sw.1:", ext_switch_1_opener?"opener":"closer");
-  //display(line2, "ext.sw.2:", ext_switch_2_opener?"opener":"closer");
-  display(line1, "external switch:");
+  //display(line1, "Ext.sw.1:", ext_switch_1_opener?"opener":"closer");
+  //display(line2, "Ext.sw.2:", ext_switch_2_opener?"opener":"closer");
+  display(line1, "External switch:");
   display(line2, ext_switch_1_opener?"opener":"closer");
   delay(2500);
   // V3 XXL needs these 2 * 2.5 seconds to get ready!
@@ -118,6 +118,7 @@ void setup() {
   sendGlobals(VelocityMapParam);
   readPresetDefaultChannels(preset_number, currentPreset);
   sendPreset(currentPreset);
+  dumpSettingsToSerial(); // with 500000 baud takes another ~0.6 seconds
   displayPreset(currentPreset, preset_number);
   
   // disable timers / avoid MIDI jitter
@@ -734,8 +735,9 @@ void sendSound(const Sound & sound, midi::Channel channel) {
   sendSoundParameter(DecayTimeParam, sound.decay_time, channel);
   sendSoundParameter(ReleaseTimeParam, sound.release_time, channel);
   sendSoundParameter(VibratoRateParam, sound.vibrato_rate, channel);
-  sendSoundParameter(VibratoRateParam, sound.vibrato_depth, channel);
-  sendSoundParameter(VibratoRateParam, sound.vibrato_delay, channel);
+  sendSoundParameter(VibratoDepthParam, sound.vibrato_depth, channel);
+  sendSoundParameter(VibratoDelayParam, sound.vibrato_delay, channel);
+  sendSoundParameter(PortamentoTimeParam, sound.portamento_time, channel);
 }
 
 /**
@@ -792,7 +794,7 @@ void displayCommonParameter(CommonParameter p, byte value) {
       break;
     case PedalModeParam:
       display(line2left, "Pdl.mode:");
-      display(line2right, value == 0 ? "Bass" : "Controller");
+      display(line2right, toString((PedalMode)value));
       break;
     case FX1TypeParam:
       display(line2left, "FX1 type:");
@@ -838,15 +840,14 @@ byte map_to_byte(SoundParameter p, int value) {
         case 1: return Modulation;
         case 2: return CutoffFrequency;
         case 3: return Resonance;
-        case 4: return PortamentoTime;
-        case 5: return PortamentoControl;
-        case 6: return Expression;
-        case 7: return InverseExpression;
+        case 4: return Expression;
+        case 5: return InverseExpression;
       }
       return NoContCtrl;
     case PitchAssign:
       switch (value) {
         case 1: return Pitch;
+        case 2: return PortamentoControl;
       }
       return NoPitchCtrl;
     case Switch1Assign: 
@@ -872,15 +873,14 @@ int map_from_byte(SoundParameter p, byte value) {
         case Modulation: return 1;
         case CutoffFrequency: return 2;
         case Resonance: return 3;
-        case PortamentoTime: return 4;
-        case PortamentoControl: return 5;
-        case Expression: return 6;
-        case InverseExpression: return 7;
+        case Expression: return 4;
+        case InverseExpression: return 5;
       }
       return 0;
     case PitchAssign:
       switch ((PitchWheelController)value) {
         case Pitch: return 1;
+        case PortamentoControl: return 2;
       }
       return 0;
     case Switch1Assign:
@@ -902,18 +902,19 @@ const char * toString(ContinuousController c) {
     case Modulation: return "modulation";
     case CutoffFrequency: return "cutoff frq";
     case Resonance: return "resonance"; 
-    case PortamentoTime: return "portm.time";
-    case PortamentoControl: return "portamento"; 
     case Expression: return "expression"; 
     case InverseExpression: return "inv.expres"; 
   }
+  return "?";
 }
 
 const char * toString(PitchWheelController c) {
   switch (c) {
     case NoPitchCtrl: return NONE;
     case Pitch: return "pitch bend";
+    case PortamentoControl: return "portamento";
   }
+  return "?";
 }
 
 const char * toString(SwitchController c) {
@@ -924,6 +925,11 @@ const char * toString(SwitchController c) {
     case Soft: return "soft";
     case Portamento: return "portamento";
   }
+  return "?";
+}
+
+const char * toString(PedalMode m) {
+  return m == 0 ? "Bass" : "Controller";
 }
 
 const char * toString(SoXXLReverbType t) {
@@ -994,6 +1000,8 @@ void displaySoundParameter(SoundParameter p, byte value, SoXXLBank bank) {
       return display(line2, "Vibrato depth:", value);
     case VibratoDelayParam:    
       return display(line2, "Vibrato delay:", value);
+    case PortamentoTimeParam:
+      return display(line2, "Portamento time:", value);
     case ModAssign:
       return display(line2, "Mod.wheel>", toString((ContinuousController)value));
     case PitchAssign:
@@ -1069,6 +1077,7 @@ void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel) {
     case VibratoRateParam: return midi3.sendControlChange(midi::SoundController7, value, channel);
     case VibratoDepthParam: return midi3.sendControlChange(midi::SoundController8, value, channel);
     case VibratoDelayParam: return midi3.sendControlChange(midi::SoundController9, value, channel);
+    case PortamentoTimeParam: return midi3.sendControlChange(midi::PortamentoTime, value, channel);
   }
 }
 
@@ -1179,6 +1188,9 @@ void setParamValuePointer(SoundParameter p) {
       break;
     case VibratoDelayParam:
       param_value = &(editedSound->vibrato_delay);
+      break;
+    case PortamentoTimeParam:
+      param_value = &(editedSound->portamento_time);
       break;
     case ModAssign:
       param_value = &(editedSound->mod_wheel_ctrl_no);
@@ -1327,28 +1339,22 @@ const unsigned int upper_pitch_range = max_pitch - max_normal_pitch;
 void handlePitchWheel(unsigned int inval) {
   // force 1 initial MIDI message by initialization with invalid value
   static int pitch = MIDI_PITCHBEND_MAX + 1;
-  int ctrlval; // value for low resolution MIDI controllers
 
   //display(line1, "pitch", inval);
   unsigned long ulval; // avoids unsigned int overflow
+  byte ctrlval; // value for low resolution MIDI controllers
   if (inval >= min_normal_pitch) {
     if (inval <= max_normal_pitch) {
       inval = 0;
-      ctrlval = MIDI_CONTROLLER_MEAN;
     }
     else {
-      ulval = MIDI_CONTROLLER_MAX - MIDI_CONTROLLER_MEAN;
-      ctrlval = (ulval * (inval - max_normal_pitch)) / upper_pitch_range + MIDI_CONTROLLER_MEAN;
       ulval = MIDI_PITCHBEND_MAX;
       inval = (ulval * (inval - max_normal_pitch)) / upper_pitch_range;
       if (inval > MIDI_PITCHBEND_MAX) {
         inval = MIDI_PITCHBEND_MAX;
-        ctrlval = MIDI_CONTROLLER_MAX;
       }
     }
   } else {
-    ulval = MIDI_CONTROLLER_MEAN;
-    ctrlval = (ulval * (inval - min_normal_pitch)) / lower_pitch_range;
     ulval = -MIDI_PITCHBEND_MIN;
     inval = (ulval * (min_normal_pitch - inval)) / lower_pitch_range;
     inval = -inval;
@@ -1357,6 +1363,7 @@ void handlePitchWheel(unsigned int inval) {
   }
   if (inval != pitch) {
     pitch = inval;
+    ctrlval = ((inval + MIDI_PITCHBEND_MAX + 1) >> 7) & 0x7f;
     //display(line1, "pitch ", inval);
     switch (state) {
       case playingSound:
@@ -1368,6 +1375,10 @@ void handlePitchWheel(unsigned int inval) {
           switch (s->pitch_wheel_ctrl_no) {
             case Pitch:
               midi3.sendPitchBend(pitch, s->channel);
+              break;
+            case PortamentoControl:
+              ctrlval = min(ctrlval, 108); // V3 bug? No sound with values > 108!
+              midi3.sendControlChange(midi::PortamentoControl, ctrlval, s->channel);
               break;
             default:
               break;
@@ -1710,4 +1721,55 @@ void handlePedal(int pedal, boolean on) {
     }
   }
   //digitalWrite(led_pin, HIGH);
+}
+
+/*-----------------------------------*/
+
+void dumpSoundToSerial(Sound & s) {
+  Serial.print(toString((SoXXLBank)s.bank)); Serial.print(" / ");
+  Serial.println(toString((SoXXLBank)s.bank,s.program_number));
+  Serial.print("    Transpose: "); Serial.print(s.transpose-MIDI_CONTROLLER_MEAN);
+  Serial.print(", Fine tune: "); Serial.print(s.finetune-MIDI_CONTROLLER_MEAN);
+  Serial.print(", Volume: "); Serial.print(s.volume);
+  Serial.print(", Stereo pan: "); Serial.print(s.pan);
+  Serial.print(", Reverb send: "); Serial.print(s.reverb_send);
+  Serial.print(", Effects send: "); Serial.println(s.effects_send);
+  Serial.print("    Cutoff frequency: "); Serial.print(s.cutoff_frequency);
+  Serial.print(", Resonance: "); Serial.print(s.resonance);
+  Serial.print(", Attack: "); Serial.print(s.attack_time);
+  Serial.print(", Decay: "); Serial.print(s.decay_time);
+  Serial.print(", Release: "); Serial.println(s.release_time);
+  Serial.print("    Vibrato rate: "); Serial.print(s.vibrato_rate);
+  Serial.print(", Depth: "); Serial.print(s.vibrato_depth);
+  Serial.print(", Delay: "); Serial.print(s.vibrato_delay);
+  Serial.print(", Portamento time: "); Serial.println(s.portamento_time);
+  Serial.print("    Modulation wheel: "); Serial.print(toString((ContinuousController)s.mod_wheel_ctrl_no));
+  Serial.print(", Pitch wheel: "); Serial.print(toString((PitchWheelController)s.pitch_wheel_ctrl_no));
+  Serial.print(", External switch: "); Serial.print(toString((SwitchController)s.ext_switch_1_ctrl_no));
+  Serial.print(", External pedal: "); Serial.println(toString((ContinuousController)s.ext_pedal_ctrl_no));
+}
+
+void dumpSettingsToSerial() {
+  Serial.println("Global_Settings");
+  Serial.print(" Velocity map: "); Serial.println(globalSettings.velocity_map);
+  Serial.println("Presets");
+  for (int i = 0; i < n_presets; i++) {
+    Preset p;
+    readPreset(i,p);
+    Serial.print(i+1);
+    Serial.print(" Reverb type: "); Serial.print(toString((SoXXLReverbType)p.fx1_type));
+    Serial.print(", Effect type: "); Serial.println(toString((SoXXLEffectsType)p.fx2_type));
+    if (p.pedal_mode==BassPedal) {
+      Serial.print("  Foot Pedal:   "); dumpSoundToSerial(p.foot);
+    }
+    if (p.split_point == invalid) {
+      Serial.print("  Keyboard:   "); dumpSoundToSerial(p.left);
+    } else {
+      Serial.print("  Keyboard Left:   "); dumpSoundToSerial(p.left);
+      Serial.print("  Keyboard Right:   "); dumpSoundToSerial(p.right);
+      if (p.layer.volume > 0) {
+        Serial.print("  Keyboard Right Layer:   "); dumpSoundToSerial(p.right);
+      }
+    }
+  }
 }

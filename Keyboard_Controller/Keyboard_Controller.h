@@ -69,21 +69,20 @@ enum SwitchController {
   Portamento = midi::Portamento // values 00 or 7f
 };
 
-const int n_continuous_assignable_ctrls = 8;
+const int n_continuous_assignable_ctrls = 6;
 enum ContinuousController {
   NoContCtrl = invalid,
   Modulation = midi::ModulationWheel,
   CutoffFrequency = 0x4A,
   Resonance = 0x47,
-  PortamentoTime = midi::PortamentoTime,
-  PortamentoControl = midi::PortamentoControl,
   Expression = midi::ExpressionController,
   InverseExpression = 128 + midi::ExpressionController // emulated, for crossfading
 };
 
-const int n_pitch_wheel_assignable_ctrls = 2;
+const int n_pitch_wheel_assignable_ctrls = 3;
 enum PitchWheelController {
   NoPitchCtrl = invalid,
+  PortamentoControl = midi::PortamentoControl,
   Pitch = 0xfe
 };
 
@@ -114,7 +113,7 @@ public:
   byte vibrato_rate;
   byte vibrato_depth;
   byte vibrato_delay;
-  byte reserved3;
+  byte portamento_time;
   byte reserved4;
   byte reserved5;
   byte mod_wheel_ctrl_no;
@@ -190,6 +189,7 @@ void defaultSound(Sound & sound) {
   sound.vibrato_rate = MIDI_CONTROLLER_MEAN;
   sound.vibrato_depth = 0;
   sound.vibrato_delay = MIDI_CONTROLLER_MEAN;
+  sound.portamento_time = MIDI_CONTROLLER_MEAN;
   sound.mod_wheel_ctrl_no = NoContCtrl; 
   sound.pitch_wheel_ctrl_no = NoPitchCtrl; 
   sound.ext_switch_1_ctrl_no = NoSwitchCtrl; 
@@ -251,13 +251,13 @@ enum CommonParameter {
   FX2TypeParam
 };
 
-const int n_sound_parameters = 20;
+const int n_sound_parameters = 21;
 
 enum SoundParameter {
   BankParam, ProgNoParam, TransposeParam, FinetuneParam, VolumeParam, PanParam, 
   ReverbSendParam, EffectsSendParam, CutoffParam, ResonanceParam,
   AttackTimeParam, DecayTimeParam, ReleaseTimeParam, 
-  VibratoRateParam, VibratoDepthParam, VibratoDelayParam,
+  VibratoRateParam, VibratoDepthParam, VibratoDelayParam, PortamentoTimeParam,
   ModAssign, PitchAssign, Switch1Assign, /*Switch2Assign,*/ ControlPedalAssign
 };
 
@@ -284,3 +284,4 @@ void sendSound(const Sound & sound, midi::Channel channel);
 void sendSoundParameter(SoundParameter p, byte value, midi::Channel channel);
 void sendGMReset();
 void process(Event event, int value);
+void dumpSettingsToSerial();
