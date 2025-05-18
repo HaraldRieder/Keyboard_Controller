@@ -20,6 +20,54 @@ Wird ein Preset gelesen und dabei nicht der "magische" 32-Bit-Wert `2e031fe5` ge
 das Pedal arbeitet als Steuerpedal (Controller) und der Tastaturbereich ist nicht geteilt (Split).
 Auf diese Weise kann ein neues Board in Betrieb genommen werden.
 
+## Backups
+
+Es gibt keine Backup-Funktion (z.B. MIDI-Dumps).
+Als primitiver Ersatz werden die Einstellungen nach dem Einschalten auf USB in menschenlesbarem Format ausgegeben.
+Um sie zu sehen benötigt man eine Arduino IDE mit seriellem Monitor.
+Das Arduino-Board muss an den Rechner per USB-Kabel angeschlossen sein.
+Die Baud-Rate muss auf **500000** eingestellt sein.
+Dann zeigt sich nach dem Einschalten im seriellen Monitor etwas wie im folgenden Beispiel.
+
+      Global_Settings
+       Velocity map: 77
+      Presets
+      1 Reverb type: Room 1, Effect type: Chorus 1
+        Keyboard:   Piano / Class Gnd Res
+          Transpose: 0, Fine tune: 0, Volume: 100, Stereo pan: 64, Reverb send: 10, Effects send: 0
+          Cutoff frequency: 33, Resonance: 0, Attack: 64, Decay: 64, Release: 64
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 1
+          Modulation wheel: modulation, Pitch wheel: pitch bend, External switch: sustain, External pedal: cutoff frq
+      2 Reverb type: Room 2, Effect type: Chorus 3
+        Keyboard:   E-Pno / MK1
+          Transpose: 0, Fine tune: 0, Volume: 84, Stereo pan: 64, Reverb send: 5, Effects send: 39
+          Cutoff frequency: 82, Resonance: 0, Attack: 64, Decay: 64, Release: 64
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 1
+          Modulation wheel: modulation, Pitch wheel: pitch bend, External switch: sustain, External pedal: (none)
+      ...
+      35 Reverb type: Room 1, Effect type: Chorus 1
+        Foot Pedal:   Bass / Up Jz no fingr
+          Transpose: 2, Fine tune: -2, Volume: 110, Stereo pan: 64, Reverb send: 0, Effects send: 0
+          Cutoff frequency: 64, Resonance: 0, Attack: 64, Decay: 64, Release: 74
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 255
+          Modulation wheel: (none), Pitch wheel: (none), External switch: (none), External pedal: (none)
+        Keyboard Left:   Organ / __853____ slow
+          Transpose: 12, Fine tune: 0, Volume: 55, Stereo pan: 64, Reverb send: 15, Effects send: 0
+          Cutoff frequency: 22, Resonance: 0, Attack: 64, Decay: 64, Release: 64
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 255
+          Modulation wheel: modulation, Pitch wheel: pitch bend, External switch: sustain, External pedal: (none)
+        Keyboard Right:   Organ / 8________ slow
+          Transpose: -12, Fine tune: 2, Volume: 100, Stereo pan: 64, Reverb send: 15, Effects send: 0
+          Cutoff frequency: 127, Resonance: 0, Attack: 64, Decay: 64, Release: 64
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 255
+          Modulation wheel: modulation, Pitch wheel: pitch bend, External switch: sustain, External pedal: inv.expres
+        Keyboard Right Layer:   Organ / 6876_____ fast
+          Transpose: -12, Fine tune: 0, Volume: 127, Stereo pan: 64, Reverb send: 15, Effects send: 0
+          Cutoff frequency: 64, Resonance: 0, Attack: 64, Decay: 64, Release: 64
+          Vibrato rate: 64, Depth: 0, Delay: 64, Portamento time: 255
+          Modulation wheel: modulation, Pitch wheel: pitch bend, External switch: sustain, External pedal: expression
+      Demian ready
+
 ## Latenzen
 
 Nach dem Verlassen der globalen Einstellungen (siehe Bedienung) werden kurz Zeiten eingeblendet, die zur Latenz beitragen:
@@ -44,11 +92,13 @@ die das Potential dazu haben, einen MIDI-Kanal zu verstopfen. Die Software verf�
 - roter Taster: Eintritt, Bestätigen
 - schwarzer Schalter: legt die Funktion des Reglers fest, d.h. Lautstärke oder Parameter einstellen.
 - Regler: bei gedrücktem Schalter werden Parameterwerte eingestellt, sonst dient er als Regler der Gesamtlautstärke.
-- Tonhöhenrad: zur Beeinflussung der Tonhöhe ("pitch bend") oder je nach Preset auch anderer MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad Parameterwerte eingestellt.
-- Modulationsrad: steuert den Vibratoeffekt ("modulation") oder je nach Preset auch andere MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad einzustellende Parameter ausgesucht.
+- Tonhöhenrad: zur Beeinflussung der Tonhöhe (Pitch bend) oder je nach Preset auch anderer MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad Parameterwerte eingestellt.
+- Modulationsrad: steuert den Vibratoeffekt (Modulation) oder je nach Preset auch andere MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad einzustellende Parameter ausgesucht.
 - Pedal: ein 15-Tastenpedal kann wahlweise als Basspedal oder zur Steuerung von MIDI-Controllern verwendet werden.
-- externer Schalter: standardmäßig für ein Haltepedal vorgesehen, kann je nach Preset auch andere MIDI-Controller beeinflussen.
-- externer Regler: steuert den Ausdruck ("expression") auf der Tastatur, je nach Einstellung nur auf dem linken, rechten oder gesamten Bereich. Viele MIDI-Module interpretieren diesen Controller standardmäßig als Kanallautstärke. Oft lässt sich etwas anderes zuordnen.
+- externer Schalter: standardmäßig für ein Haltepedal (Sustain) vorgesehen, kann je nach Preset auch andere MIDI-Controller beeinflussen.
+- externer Regler: standardmäßig für den Ausdruck vorgesehen (Expression), kann je nach Preset auch andere MIDI-Controller beeinflussen.
+
+Viele MIDI-Module interpretieren *Expression* einfach als Lautstärke. Manchmal lässt sich etwas anderes einstellen.
 
 ### Einschalten
 
@@ -127,11 +177,42 @@ Diese Gruppen enthalten immer denselben Satz an Parametern:
 - Vibrato-Frequenz (Rate)
 - Vibrato-Stärke (Depth)
 - Vibrato-Verzögerung (Delay)
-- Weitere Parameter zum Zuordnen von Bedienelementen zu MIDI-Controllern.
+- Portamento-Zeit. Portamento muss über ein Bedienelement explizit eingeschaltet werden.
+- Funktion der Pitch-Bend-Rads:
+    - keine
+    - Pitch Bend
+    - Portamento-Einsatz
+- Funktion des Modulations-Rads
+    - keine (none)
+    - Modulation
+    - Tiefpass-Frequenz (Cutoff)
+    - Filter-Resonanz
+    - Expression
+    - Expression invertiert
+- Funktion des externen Schalters
+    - keine (none)
+    - Haltepedal (Sustain)
+    - Sostenuto
+    - Weich (Soft)
+    - Portamento an/aus
+- Funktion des externen Reglers
+    - keine (none)
+    - Modulation
+    - Tiefpass-Frequenz (Cutoff)
+    - Filter-Resonanz
+    - Expression
+    - Expression invertiert
+
+Die *keine* Funktion kann z.B. dazu genutzt werden, ein Haltepedal nur auf den rechten Tastaturbereich wirken zu lassen,
+wenn der linke Bereich dem Bassspiel dienen soll.
+
+Die Funktion _Expression invertiert_ ist speziell für den rechten Tastaturbereich gedacht, der 2 Kanäle gleichzeitig ansteuert.
+Wenn ein Kanal mit _Expression_ und der andere mit _Expression invertiert_ vom selben Regler
+gesteuert wird, lassen sich damit Überblendungen realisieren.
 
 ### Pedal
 
-Das Pedal dient entweder zum Bassspiel, wenn es in den Preset-Einstellungen so definiert ist, oder zur Steuerung der Funktionen, die auf dem Bild gezeigt sind. Soft, Sustain (Haltepedal) und Sostenuto sind von Klavieren her bekannt. Wenn im Preset-Modus ein Tastatursplit aktiv ist, dann können Sustain und Sostenuto für linken und rechten Klaviaturbereich getrennt gesteuert werden. Unterstützung von Wha-Wha, Portamento und Rotorgeschwindigkeit hängen vom gewählten Sound des angesteuerten MIDI-Moduls ab.
+Das Pedal dient entweder zum Bassspiel, wenn es in den Preset-Einstellungen so definiert ist, oder zur Steuerung der Funktionen, die auf dem Bild gezeigt sind. Soft, Sustain (Haltepedal) und Sostenuto sind von Klavieren her bekannt. Wenn im Preset-Modus ein Tastatursplit aktiv ist, dann können Sustain und Sostenuto für linken und rechten Klaviaturbereich getrennt gesteuert werden. Unterstützung von Portamento hängt vom gewählten Sound des angesteuerten MIDI-Moduls ab.
 
 
 ![](Pedal.png)

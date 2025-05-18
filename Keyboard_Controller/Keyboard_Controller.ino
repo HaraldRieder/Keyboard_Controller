@@ -1768,7 +1768,7 @@ void dumpSettingsToSerial() {
       Serial.print("  Keyboard Left:   "); dumpSoundToSerial(p.left);
       Serial.print("  Keyboard Right:   "); dumpSoundToSerial(p.right);
       if (p.layer.volume > 0) {
-        Serial.print("  Keyboard Right Layer:   "); dumpSoundToSerial(p.right);
+        Serial.print("  Keyboard Right Layer:   "); dumpSoundToSerial(p.layer);
       }
     }
   }
