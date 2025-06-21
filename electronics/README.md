@@ -2,26 +2,26 @@
 
 ## Module
 
-Mit dem Hauptschalter des GT-2 mini schalten sich die komplette interne Elektronik sowie die beiden gesicherten Steckdosen auf der Rückseite mit ein und aus. Für diesen Komfort sorgt ein Triac-Relais mit Nulldurchgangsschaltung. Um es anzusteuern mussten 5V Versorgungsspannung aus dem Hauptmodul des GT-2 mini in gewährleistungsvernichtender Weise abgegriffen werden.
+Mit dem Hauptschalter des GT-2 mini schalten sich die komplette interne Elektronik sowie die beiden gesicherten Steckdosen auf der Rückseite mit ein und aus. Für diesen Komfort sorgt ein Triac-Relais mit Nulldurchgangsschaltung. Um es anzusteuern mussten 5V Versorgungsspannung aus dem Hauptmodul des GT-2 mini abgegriffen werden.
 
 |Blockschaltbild|
 | ----------- |
 |![](Blockschaltbild.PNG)|
 
-Das GT-2 mini Hauptmodul wird wie vorgesehen von der Tastatursensorleiste angesteuert und kann über seine Bedieneinheit bedient werden. Pedalsensoren sind keine angeschlossen, Sustain, Sostenuto usw. werden über die selbstgebaute Steuerung realisiert. Die Tastendrücke gelangen als MIDI-Nachrichten zur selbstgebauten Steuerung, die auf einem Arduino Mega 2560 basiert. An der Steuerung hängt ein 2x20 Zeilen LCD Display, MIDI-Ein- und Ausgänge, 2 Handräder für Pitch Bend und Modulation, 2 Taster, optional extern 2 Schalter und/oder ein Basspedal.
+Das GT-2 mini Hauptmodul wird wie vorgesehen von der Tastatursensorleiste angesteuert und kann über seine Original-Bedieneinheit bedient werden. Pedalsensoren sind keine angeschlossen, denn Sustain, Sostenuto usw. werden über die selbstgebaute Steuerung realisiert. Die Tastendrücke gelangen als MIDI-Nachrichten zur selbstgebauten Steuerung, die auf einem Arduino Mega 2560 basiert. An der Steuerung hängt ein 2x20 Zeilen LCD Display, MIDI-Ein- und Ausgänge, 2 Handräder für Pitch Bend und Modulation, 2 Taster und optional extern: 1 Schalter, 1 Steuerpedal, 1 Basspedal.
 
-Die Steuerung mischt die diversen Sensorinformationen zu den MIDI-Daten, die vom GT-2 mini empfangen worden sind, und leitet das Gesamtkunstwerk über MIDI an das interne Ketron SD-2 GM Sound-Modul zwecks Hörbarmachung weiter.
+Die Steuerung mischt die diversen Sensorinformationen zu den MIDI-Daten, die vom GT-2 mini empfangen worden sind, und leitet das Gesamtkunstwerk über MIDI an das interne V3 Sonority XXL Sound-Modul zwecks Hörbarmachung weiter.
 
-Der MIDI-Eingang wird durch das GT-2 mini zur Steuerung geschleift. Diese mischt sie zum MIDI-Strom Richtung SD-2 hinzu. Dadurch kann das SD-2 als Sound Modul über den zweiten Eingang z.B. von einem Sequenzer genutzt werden, während gleichzeitig auf der Tastatur dazu gespielt wird.
+Der MIDI-Eingang wird durch das GT-2 mini zur Steuerung geschleift. Diese mischt sie zum MIDI-Strom Richtung V3 hinzu. Dadurch kann das V3 als Sound-Modul über den zweiten Eingang z.B. von einem Sequenzer genutzt werden, während gleichzeitig auf der Tastatur dazu gespielt wird.
 
 Zur Bedienung der Steuerung dienen ein Regler mit benachbartem Schalter, 2 Taster (rot und schwarz), die 2 Handräder, die Tastatur (z.B. Festlegung einer Split-Position durch Tastendruck) und optional ein Fußpedal.
 
-Der Audio-Ausgang des Ketron SD-2 sowie 2 externe Stereo-Eingänge (4 x Cinch) werden über den selbstgebauten Mischer geschleift zum externen Audio-Ausgang (2 x 6,3 mm Klinke).
+Der Audio-Ausgang des V3 sowie 2 externe Stereo-Eingänge (Cinch und 3,5 mm Klinke) werden über den selbstgebauten Mischer geschleift zum externen Audio-Ausgang (2 x 6,3 mm Klinke) und gleichzeitig zum Eingang des GT-2 mini, wo das gemischte Signal über die anschließbaren Kopfhörer gehört werden kann.
+Auch das Metronom des GT-2 mini kann auf diese Art benutzt werden.
 
-Der Kopfhörer-Ausgang des Ketron SD-2 ist mit dem Audio-Eingang des GT-2 mini verbunden, so dass das SD-2 über Kopfhörer gehört werden kann. Das Metronom des GT-2 mini kann auf diese Art benutzt werden. Das GT-2 mini verfälscht das Eingangssignal stark. Viel Brillanz geht verloren. Während man sonst meint bei den E-Pianos des SD-2 hören zu können, wie die Metallzungen angeschlagen werden, so ist dieser Eindruck futsch, sobald die Elektronik des GT-2 mini betreten wird. Aus diesem Grund und aufgrund der billigen Klänge des GT-2 mini wurde darauf verzichtet, sein Audio-Signal extra nach draußen zu legen. Es steht natürlich an seinen integrierten Kopfhörerbuchsen zur Verfügung.
+Der Kopfhörer-Ausgang des V3 ist direkt nach außen geführt auf eine 6,3 mm Klinkenbuchse. Dieses Signal lässt sich außer in Kopfhörer auch in Standardeingänge einspeisen.
 
-2024 wurde das Ketron SD-2 ausgemustert. Man konnte mit dem Modul keine Tremolos spielen, weil es dann Noten-Aussetzer bekam, und ein Software-Update war nicht mehr zu erwarten. Seither ist ein V3 Sonority XXL verbaut. Damit kann man sogar Tremolos spielen, so wie auf jedem mechanischen
-Klavier oder Digitalpiano, das nicht von Ketron stammt.
+2024 wurde ein Ketron SD-2 durch das V3 Sonority XXL Modul ersetzt. Man konnte mit dem SD-2 keine Tremolos spielen, weil es dann Noten-Aussetzer bekam, und ein Software-Update war nicht mehr zu erwarten. Mit dem V3 kann man Tremolos spielen, so wie auf jedem mechanischen Klavier.
 
 ## Arduino Mega 2560 mit Peripherie
 
@@ -39,7 +39,7 @@ Das Pedal wird mit einem Sub-D Stecker an das Pianogehäuse angeschlossen.
 | ----------- |
 |![](Arduino.PNG)|
 
-Über den Anschluß von MIDI-Peripherie und LCD-Anzeigen an Arduino-Boards gibt es haufenweise Anleitungen. Diese brauchen hier nicht wiederholt zu werden. Der Mega 2560 könnte bis zu 4 MIDI-Ein- und Ausgänge bedienen. Ich habe die Schaltung auf 2 MIDI-Ein und Ausgänge ausgelegt, derzeit ist nur 1 Eingang bestückt.
+Über den Anschluß von MIDI-Peripherie und LCD-Anzeigen an Arduino-Boards gibt es haufenweise Anleitungen. Diese brauchen hier nicht wiederholt zu werden. Der Mega 2560 könnte bis zu 4 MIDI-Ein- und Ausgänge bedienen. Ich habe die Schaltung auf 2 MIDI-Ein- und Ausgänge ausgelegt.
 
 _Der Digitalteil wurde ab Herbst 2015 nach und nach in Betrieb genommen. Im Frühjahr 2016 zeigten sich nach längerem Betrieb erstmals lustige Effekte: Aussetzer, falsche Tonhöhen, ganz andere Klangfarben als die eingestellte. So hören sich typischerweise MIDI-Bitfehler an, und da es in kaltem Zustand nach dem Einschalten nie Fehler gab, war klar, dass es ein Temperatureffekt sein musste. Der 220 Ohm Widerstand am MIDI-Eingang war etwas zu groß bemessen für den verwendeten PC 817 Optokoppler. Die Reparatur erfolgte durch Austausch des PC 817 gegen ein anderes Exemplar. Alternativ hätte man den Widerstand verkleinern können._
 
@@ -77,13 +77,14 @@ Viel mehr ist zum Digitalteil nicht zu sagen, den Rest muss die Software erledig
 
 Der Audiomischer hat zunächst ein eigenes Analognetzteil mit Transformator und Brückengleichrichter bekommen, um nicht auf unerwünschte Weise mit dem Digitalgedöns verbunden sein zu können (Brummschleife!). Ein 7809 Spannungsregler regelt auf 9V, was für viele Operationsverstärker ausreicht.
 
-Es kommt ein Operationsverstärker TLE2072 zum Einsatz, der rauschärmer als ein TL072 sein soll. Ich meine, dass der größere Teil des noch hörbaren Rauschens vom GT-2 mini beigesteuert wird.
+Es kommt ein Operationsverstärker TLE2072 zum Einsatz, der rauschärmer als ein TL072 sein soll.
 
 |Schaltplan Audio-Mischer|
 | ----------- |
 |![](Mischer.PNG)|
 
-Der Mischer "verstärkt" den für das Ketron SD-2 vorgesehenen Stereo-Kanal mit dem Faktor 1. Der Lautstärkeschieberegler des Ketron ist immer voll aufgedreht. Die beiden externen Stereo-Kanäle werden mit einem Faktor 2 verstärkt. Das soll es erlauben, das interne Sound-Modul bei Bedarf zu übertönen. Der Stereo-Ausgang ist auf den Eingang des GT-2 mini gelegt. Dort darf man das Eingangssignal nicht ganz aufdrehen, weil es sonst schon allein mit dem Ketron zu Übersteuerungen kommt.
+Der Mischer "verstärkt" den für das MIDI-Modul vorgesehenen Stereo-Kanal mit dem Faktor 1. Der Lautstärkeregler des V3 ist immer voll aufgedreht. Die beiden externen Stereo-Kanäle werden mit einem Faktor 2 verstärkt. Das soll es erlauben, das interne Sound-Modul bei Bedarf zu übertönen.
+Der Stereo-Ausgang ist nach außen geführt und auf den Eingang des GT-2 mini gelegt. Dort darf man das Eingangssignal nicht ganz aufdrehen, weil es sonst zu Übersteuerungen kommt.
 
 |Der Mischer entsteht|
 | ----------- |
