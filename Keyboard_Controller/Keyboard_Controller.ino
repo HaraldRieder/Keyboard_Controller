@@ -48,9 +48,9 @@ boolean mod_wheel_up;
 const int volume_control_pin = A2;
 int volume_control_val = 1023; // 0..1023 analog value
 int volume_val = MIDI_CONTROLLER_MAX; // 0..127 MIDI value
-/* internal switch */
-const int int_switch_pin = A3;
-boolean int_switch_on;
+/* select */
+const int select_pin = A3;
+int select_val = -20; // invalid value (outside jitter range) -> set preset according position of knob on init
 
 /* number of current preset, initially the first preset saved in EEPROM */
 int preset_number = 0, cancel_number;
@@ -228,13 +228,12 @@ void loop() {
       }
       break;
     case 8:
-      int_switch_on = analogRead(int_switch_pin) > 500; // 0..1023 range
-      if (int_switch_on) {
-        lcd.setCursor(lcd_columns/2 - 1,0);
-        lcd.blink();
-      } 
-      else {
-        lcd.noBlink();
+      inval = analogRead(select_pin);
+      // if changed, with +-2 jitter suppression
+      if (inval > select_val + 2 || inval < select_val - 2) {
+        select_val = inval;
+        inval /= 8;
+        process(selectKnob, inval);
       }
       break;
   }
@@ -302,15 +301,13 @@ void process(Event event, int value) {
           displayParameterSet(line2, currentPreset, parameter_set);
           return;
         case volumeKnob:
-          if (int_switch_on) {
-            preset_number = value * n_presets / (MIDI_CONTROLLER_MAX+1);
-            readPresetDefaultChannels(preset_number, currentPreset);
-            sendPreset(currentPreset);
-            displayPreset(currentPreset, preset_number);
-          } 
-          else {
-            sendVolumes(currentPreset, volume_val = value);
-          }
+          sendVolumes(currentPreset, volume_val = value);
+          return;
+        case selectKnob:
+          preset_number = value * n_presets / (MIDI_CONTROLLER_MAX+1);
+          readPresetDefaultChannels(preset_number, currentPreset);
+          sendPreset(currentPreset);
+          displayPreset(currentPreset, preset_number);
           return;
       }
       return;
@@ -326,14 +323,12 @@ void process(Event event, int value) {
           displayGlobalParameter(global_parameter, *param_value);
           return;
         case volumeKnob:
-          if (int_switch_on) {
-            program_number = value; 
-            sendSound(current_bank, program_number, sound_channel);
-            displaySound(current_bank, program_number);
-          }
-          else {
-            sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
-          }
+          sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
+          return;
+        case selectKnob:  
+          program_number = value; 
+          sendSound(current_bank, program_number, sound_channel);
+          displaySound(current_bank, program_number);
           return;
         case modWheel: // internal switch is down
           // bank select, program number remains unchanged
@@ -381,16 +376,16 @@ void process(Event event, int value) {
           }
           return;
         case volumeKnob:
-          if (int_switch_on) {
+          sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
+          return;
+        case selectKnob:
+          {
             int mini, maxi, range;
             getMinMaxRange(global_parameter, mini, maxi, range);
             int_param_value = mini + value * range / (MIDI_CONTROLLER_MAX+1) ;
             *param_value = map_to_byte(global_parameter, int_param_value);
             displayGlobalParameter(global_parameter, *param_value);
             sendGlobals(global_parameter);
-          }
-          else {
-            sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
           }
           return;
       }
@@ -518,7 +513,10 @@ void process(Event event, int value) {
           }
           return;
         case volumeKnob:
-          if (int_switch_on) {
+          sendVolumes(currentPreset, volume_val = value);
+          return;
+        case selectKnob:
+          {
             int min = -1;
             int max = MIDI_CONTROLLER_MAX;
             switch (common_parameter) {
@@ -530,9 +528,6 @@ void process(Event event, int value) {
             *param_value = map_to_byte(common_parameter, int_param_value);
             displayCommonParameter(common_parameter, *param_value);
             sendCommonParameter(common_parameter, *param_value);
-          }
-          else {
-            sendVolumes(currentPreset, volume_val = value);
           }
           return;
         case noteEvent:
@@ -580,16 +575,16 @@ void process(Event event, int value) {
           }
           return;
         case volumeKnob:
-          if (int_switch_on) {
+          sendVolumes(currentPreset, volume_val = value);
+          return;
+        case selectKnob:
+          {
             int mini, maxi, range;
             getMinMaxRange(sound_parameter, mini, maxi, range);
             int_param_value = mini + value * range / (MIDI_CONTROLLER_MAX+1) ;
             *param_value = map_to_byte(sound_parameter, int_param_value);
             displaySoundParameter(sound_parameter, *param_value, (SoXXLBank)editedSound->bank);
             sendPresetSoundParameter(sound_parameter, *param_value);
-          }
-          else {
-            sendVolumes(currentPreset, volume_val = value);
           }
           return;
         case noteEvent:
@@ -1417,12 +1412,12 @@ void handleModWheel(unsigned int inval) {
     //display(line2, "mod", inval);
     switch (state) {
       case playingSound:
-        if (int_switch_on) {
-          process(modWheel, modulation);
-        }
-        else {
+        //if (int_switch_on) {
+        //  process(modWheel, modulation);
+        //}
+        //else {
           midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
-        }
+        //}
         break;
       case playingPreset:
         for (int i = 0; i < n_sounds_per_preset; i++) {
