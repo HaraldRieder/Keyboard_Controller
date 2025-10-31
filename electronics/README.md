@@ -14,7 +14,7 @@ Die Steuerung mischt die diversen Sensorinformationen zu den MIDI-Daten, die vom
 
 Der MIDI-Eingang wird durch das GT-2 mini zur Steuerung geschleift. Diese mischt sie zum MIDI-Strom Richtung V3 hinzu. Dadurch kann das V3 als Sound-Modul über den zweiten Eingang z.B. von einem Sequenzer genutzt werden, während gleichzeitig auf der Tastatur dazu gespielt wird.
 
-Zur Bedienung der Steuerung dienen ein Regler mit benachbartem Schalter, 2 Taster (rot und schwarz), die 2 Handräder, die Tastatur (z.B. Festlegung einer Split-Position durch Tastendruck) und optional ein Fußpedal.
+Zur Bedienung der Steuerung dienen 2 Regler (klein und groß), 2 Taster (rot und schwarz), die 2 Handräder, die Tastatur (z.B. Festlegung einer Split-Position durch Tastendruck) und optional ein Fußpedal.
 
 Der Audio-Ausgang des V3 sowie 2 externe Stereo-Eingänge (Cinch und 3,5 mm Klinke) werden über den selbstgebauten Mischer geschleift zum externen Audio-Ausgang (2 x 6,3 mm Klinke) und gleichzeitig zum Eingang des GT-2 mini, wo das gemischte Signal über die anschließbaren Kopfhörer gehört werden kann.
 Auch das Metronom des GT-2 mini kann auf diese Art benutzt werden.
@@ -56,7 +56,8 @@ Durch geschickte Wahl von Rp kann man die verketteten nichtlinearen Funktionen R
 gegeneinander ausspielen und so die Gesamtfunktion U(R(x)) = U(x) einigermaßen linear bekommen.
 Die Entscheidung, ob der Anschluss für kontinuierliche oder diskrete MIDI Controller oder beide Arten zugleich verwendet wird, fällt erst in der Software.
 
-2019 wurden ein Potentiometer und ein Schalter auf der rechten Seite der Frontblende hinzugefügt. Beide sind an analoge Eingänge angeschlossen, der Schalter mit einem 22k Pulldown Widerstand.
+Später wurden 2 Potentiometer auf der rechten Seite der Frontblende hinzugefügt. Beide sind an analoge Eingänge angeschlossen.
+Eines davon regelt immer die Gesamtlautstärke.
 
 Es sind noch 3 analoge Eingänge unbeschaltet.
 

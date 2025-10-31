@@ -90,8 +90,8 @@ die das Potential dazu haben, einen MIDI-Kanal zu verstopfen. Die Software verf�
 
 - schwarzer Taster: Durchwechseln, Ausgang, Abbruch
 - roter Taster: Eintritt, Bestätigen
-- schwarzer Schalter: legt die Funktion des Reglers fest, d.h. Lautstärke oder Parameter einstellen.
-- Regler: bei gedrücktem Schalter werden Parameterwerte eingestellt, sonst dient er als Regler der Gesamtlautstärke.
+- kleiner Regler: Auswahl von Parameterwerten
+- großer Regler: Gesamtlautstärke
 - Tonhöhenrad: zur Beeinflussung der Tonhöhe (Pitch bend) oder je nach Preset auch anderer MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad Parameterwerte eingestellt.
 - Modulationsrad: steuert den Vibratoeffekt (Modulation) oder je nach Preset auch andere MIDI-Controller. Wenn ein Preset editiert wird, dann werden mit diesem Rad einzustellende Parameter ausgesucht.
 - Pedal: ein 15-Tastenpedal kann wahlweise als Basspedal oder zur Steuerung von MIDI-Controllern verwendet werden.
@@ -108,7 +108,7 @@ Außerdem wird automatisch ermittelt, ob der externe Schalter als Öffner oder S
 Damit dies gelingen kann, sollte der Schalter beim Einschalten in seiner Ruheposition sein.
 Das Ergebnis wird ebenfalls für wenige Sekunden angezeigt.
 
-Nach dem Einschalten wird das erste Preset geladen und angezeigt.
+Nach dem Einschalten wird das Preset geladen und angezeigt, das der Stellung des kleinen Reglers entspricht.
 
 ### Spielmodus und globale Einstellungen
 
@@ -118,6 +118,7 @@ Mit dem schwarzen Taster kann zyklisch gewechselt werden zwischen
 - Spielen von Sounds
 - Globale Einstellungen
 
+<!--
 Wenn der schwarze Schalter gedrückt ist, dann wechseln Bedienelemente ihr Verhalten je nach Modus.
 <br/>
 
@@ -125,6 +126,7 @@ Wenn der schwarze Schalter gedrückt ist, dann wechseln Bedienelemente ihr Verha
 | --------| -----| -----| -----|
 | **Regler** | Preset-Auswahl | Sound-Auswahl | Parameterwert |
 | **Modulationsrad** |  | Sound-Bank | Parameter-Auswahl (derzeit nur Dynamikkurve) |
+-->
 
 ![](states_1.jpg)
 
