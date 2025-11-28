@@ -114,27 +114,19 @@ Nach dem Einschalten wird das Preset geladen und angezeigt, das der Stellung des
 
 Mit dem schwarzen Taster kann zyklisch gewechselt werden zwischen
 
-- Spielen von Presets
-- Spielen von Sounds
+- Spielen von Presets, mit den zuvor frei gewählten und gespeicherten Einstellungen und gegebenenfalls Keyboard-Split und Fußpedal
+- Spielen von Sounds, wie sie bereits der Hersteller im V3 Modul festgelegt hat
 - Globale Einstellungen
-
-<!--
-Wenn der schwarze Schalter gedrückt ist, dann wechseln Bedienelemente ihr Verhalten je nach Modus.
-<br/>
-
-| Bedienelement | Spielen von Presets | Spielen von Sounds | Globale Einstellungen |
-| --------| -----| -----| -----|
-| **Regler** | Preset-Auswahl | Sound-Auswahl | Parameterwert |
-| **Modulationsrad** |  | Sound-Bank | Parameter-Auswahl (derzeit nur Dynamikkurve) |
--->
 
 ![](states_1.jpg)
 
-Aus dem Modues *Spielen von Presets* gelangt man in den Editier-Modus durch Drücken des roten Tasters, den man mit dem schwarzen Taster wieder verlassen kann.
+Aus dem Modus *Spielen von Presets* gelangt man in den Editier-Modus durch Drücken des roten Tasters, den man mit dem schwarzen Taster wieder verlassen kann.
 
 Wurde das Preset verändert, so wird man gefragt, ob man das Preset speichern möchte. Standardmäßig wird es an die aktuelle Position gespeichert. Mit dem Modulationsrad lässt sich jedoch eine anderes Ziel wählen, das heißt, dass das editierte Preset nicht geändert wird sondern ein anderes Preset überschrieben wird. Der rote Taster bestätigt das Speichern. Mit dem schwarzen Taster lassen sich die Änderungen verwerfen.
 
 Wurde das Preset nicht verändert, so wird man gefragt, ob man das Preset kopieren möchte. Mit dem Modulationsrad lässt sich das Ziel für die Kopieraktion wählen. Der rote Taster bestätigt das Kopieren. Mit dem schwarzen Taster lassen sich die Änderungen verwerfen.
+
+Nochmaliges Drücken des schwarzen Tasters wechselt in den Modus _Spielen von Sounds_. Mit dem kleinen Regler wird nun der Sound innderhalb der Bank gewählt. Wenn der rote Taster gedrückt ist, dann kann mit dem Modulationsrad die Sound-Bank gewählt werden.
 
 
 ### Editieren eines Preset

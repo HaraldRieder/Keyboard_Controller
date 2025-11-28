@@ -314,7 +314,6 @@ void process(Event event, int value) {
       
     case playingSound: 
       switch (event) {
-        case enterBtn:
         case exitBtn:
           state = editGlobals;
           display(line1, "Global Settings");
@@ -330,7 +329,7 @@ void process(Event event, int value) {
           sendSound(current_bank, program_number, sound_channel);
           displaySound(current_bank, program_number);
           return;
-        case modWheel: // internal switch is down
+        case modWheel: // red button is down
           // bank select, program number remains unchanged
           value = value * n_SoXXL_banks / (MIDI_CONTROLLER_MAX+1);
           SoXXLBank bank = toSoXXLBank(value);
@@ -1412,12 +1411,12 @@ void handleModWheel(unsigned int inval) {
     //display(line2, "mod", inval);
     switch (state) {
       case playingSound:
-        //if (int_switch_on) {
-        //  process(modWheel, modulation);
-        //}
-        //else {
+        if (push_btn_enter_val > 0) {
+          process(modWheel, modulation);
+        }
+        else {
           midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
-        //}
+        }
         break;
       case playingPreset:
         for (int i = 0; i < n_sounds_per_preset; i++) {
