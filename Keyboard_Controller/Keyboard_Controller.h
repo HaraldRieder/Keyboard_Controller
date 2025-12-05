@@ -263,6 +263,7 @@ enum SoundParameter {
 
 enum State {
   playingSound, 
+  selectSound,
   playingPreset,
   editPreset,
   editPresetCommon,

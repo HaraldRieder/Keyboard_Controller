@@ -252,11 +252,6 @@ void loop() {
 }
 
 /*--------------------------------- state event machine ---------------------------------*/
-/*
-playingPreset --exit--> playingSound --exit--> systemInfo --> playingPreset ...
-systemInfo --enter--> // TODO edit system settings if needed
-playingPreset --enter--> editPreset --exit--> playingPreset
-*/
 
 State state = playingPreset;
 Sound * editedSound = &currentPreset.right;
@@ -292,7 +287,7 @@ void process(Event event, int value) {
           sendSoundParameter(TransposeParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(PanParam, MIDI_CONTROLLER_MEAN, sound_channel);
           sendSoundParameter(ReverbSendParam, 10, sound_channel);
-          displaySound(current_bank, program_number);
+          displaySound(current_bank, program_number, false);
           return;
         case enterBtn:
           state = editPreset;
@@ -321,27 +316,56 @@ void process(Event event, int value) {
           int_param_value = map_from_byte(global_parameter, *param_value);
           displayGlobalParameter(global_parameter, *param_value);
           return;
+        case enterBtn:
+          state = selectSound;
+          lcd.setCursor(lcd_columns/2 - 1,0);
+          lcd.blink();
+          return;
         case volumeKnob:
           sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
           return;
         case selectKnob:  
           program_number = value; 
           sendSound(current_bank, program_number, sound_channel);
-          displaySound(current_bank, program_number);
+          displaySound(current_bank, program_number, false);
           return;
-        case modWheel: // red button is down
+      }
+      return;
+      
+    case selectSound:
+      switch (event) {
+        case exitBtn:
+          state = playingSound;
+          lcd.noBlink();
+          return;
+        case pitchWheel:
+          // sound select, increment/decrement by 1 or by 10 
+          if (handlePitchWheelEvent(value, 0, MIDI_CONTROLLER_MAX, &program_number)) {
+            sendSound(current_bank, program_number, sound_channel);
+            displaySound(current_bank, program_number, true);
+          }
+          return;
+        case volumeKnob:
+          sendSoundParameter(VolumeParam, volume_val = value, sound_channel);
+          return;
+        case selectKnob:  
+          program_number = value; 
+          sendSound(current_bank, program_number, sound_channel);
+          displaySound(current_bank, program_number, true);
+          return;
+        case modWheel:
           // bank select, program number remains unchanged
           value = value * n_SoXXL_banks / (MIDI_CONTROLLER_MAX+1);
           SoXXLBank bank = toSoXXLBank(value);
           if (bank != current_bank) {
             current_bank = bank;
             sendSound(current_bank, program_number, sound_channel);
-            displaySound(current_bank, program_number);
+            displaySound(current_bank, program_number, true);
           }
           return;
       }
       return;
-      
+
     case editGlobals:
       switch (event) {
         case exitBtn:
@@ -674,12 +698,18 @@ void displayDestinationPreset(int preset_number) {
  * Displays "Sound" in line 1 of the LCD.
  * Displays bank name, program number (starting with 1) and program name in line 2.
  */ 
-void displaySound(SoXXLBank bank, int number) {
+void displaySound(SoXXLBank bank, int number, boolean blink) {
   display(line1, "Sound");
   // display bank name and program number starting with 1
   display(line2left, toString(bank), number+1);
   // display program name
   display(line2right, toString(bank, number));
+  if (blink) {
+    lcd.setCursor(lcd_columns/2 - 1,0);
+    lcd.blink();
+  }
+  else 
+    lcd.noBlink();
 }
 
 /**
@@ -1307,6 +1337,7 @@ void handleExtSwitch1(int inval) {
   boolean off = ext_switch_1_opener ? (inval == LOW) : (inval == HIGH);
   switch (state) {
     case playingSound:
+    case selectSound:
       midi3.sendControlChange(midi::Sustain, off ? 0 : MIDI_CONTROLLER_MAX, sound_channel);
       break;
     default:
@@ -1411,12 +1442,7 @@ void handleModWheel(unsigned int inval) {
     //display(line2, "mod", inval);
     switch (state) {
       case playingSound:
-        if (push_btn_enter_val > 0) {
-          process(modWheel, modulation);
-        }
-        else {
-          midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
-        }
+        midi3.sendControlChange(midi::ModulationWheel, modulation, sound_channel);
         break;
       case playingPreset:
         for (int i = 0; i < n_sounds_per_preset; i++) {
@@ -1449,6 +1475,7 @@ void handleModWheel(unsigned int inval) {
 void externalControl(int value) {
   switch (state) {
       case playingSound:
+      case selectSound:
         midi3.sendControlChange(midi::ExpressionController, value, sound_channel);
         break;
       case playingPreset:
@@ -1482,6 +1509,7 @@ void handleNoteOn(byte channel, byte note, byte velocity)
   velocity = velocity_map[velocity];
   switch (state) {
     case playingSound: 
+    case selectSound:
       midi3.sendNoteOn(note, velocity, sound_channel);
       break;
     default: // Preset
@@ -1512,6 +1540,7 @@ void handleNoteOff(byte channel, byte note, byte velocity)
   }
   switch (state) {
     case playingSound: 
+    case selectSound:
       midi3.sendNoteOff(note, velocity, sound_channel);
       break;
     default: // Preset
@@ -1540,9 +1569,11 @@ const midi::DataByte PedalVelocity = 80;
 
 void handlePedal(int pedal, boolean on) {
   boolean preset_mode = true;
+  boolean blink = (state == selectSound);
   switch (state) {
     case playingSound:
-//    case editGlobals:
+    case selectSound:
+    case editGlobals:
     case showInfo:
       preset_mode = false;
       break;
@@ -1599,10 +1630,10 @@ void handlePedal(int pedal, boolean on) {
       break;
     case 9:
       // in sound mode cycle banks down
-      if (state == playingSound && on) {
+      if ((state == playingSound || state == selectSound) && on) {
         current_bank = toSoXXLBank(toIndex(current_bank) - 1);
         sendSound(current_bank, program_number, sound_channel);
-        displaySound(current_bank, program_number);
+        displaySound(current_bank, program_number, blink);
       }
       break;
     case 10:
@@ -1612,10 +1643,10 @@ void handlePedal(int pedal, boolean on) {
       break;
     case 11:
       // in sound mode cycle banks up
-      if (state == playingSound && on) {
+      if ((state == playingSound || state == selectSound) && on) {
         current_bank = toSoXXLBank(toIndex(current_bank) + 1);
         sendSound(current_bank, program_number, sound_channel);
-        displaySound(current_bank, program_number);
+        displaySound(current_bank, program_number, blink);
       }
       break;
     case 12:
@@ -1625,7 +1656,7 @@ void handlePedal(int pedal, boolean on) {
       break;
     case 13:
       if (on) {
-        if (state == playingSound || state == playingPreset) {
+        if (state == playingSound || state == selectSound || state == playingPreset) {
           // scale tune with key select
           scaletuneState = waitForScaletuneKey;
           displayScale();
@@ -1633,8 +1664,8 @@ void handlePedal(int pedal, boolean on) {
       }
       else {
         scaletuneState = tuned;
-        if (state == playingSound) {
-          displaySound(current_bank, program_number);
+        if (state == playingSound || state == selectSound) {
+          displaySound(current_bank, program_number, blink);
         }
         else if (state == playingPreset) {
           displayPreset(currentPreset, preset_number);
@@ -1652,6 +1683,7 @@ void handlePedal(int pedal, boolean on) {
     if (controller > 0) {
       switch (state) {
         case playingSound:
+        case selectSound:
           midi3.sendControlChange(controller, on ? MIDI_CONTROLLER_MAX : low_value, sound_channel);
           break;
         default:
@@ -1683,6 +1715,7 @@ void handlePedal(int pedal, boolean on) {
       const char * sign = change_preset_or_sound_by > 0 ? "+" : "-";
       switch (state) {
         case playingSound:
+        case selectSound:
         case playingPreset: 
           if (on) {
             // display the increment/decrement value
@@ -1697,10 +1730,10 @@ void handlePedal(int pedal, boolean on) {
               sendPreset(currentPreset);
               displayPreset(currentPreset, preset_number);
             } 
-            else {
+            else if (state == playingSound || state == selectSound) {
               program_number = max(0, min(MIDI_CONTROLLER_MAX, program_number + change_preset_or_sound_by));
               sendSound(current_bank, program_number, sound_channel);
-              displaySound(current_bank, program_number);
+              displaySound(current_bank, program_number, blink);
             }
           }
       }
@@ -1709,6 +1742,7 @@ void handlePedal(int pedal, boolean on) {
     if (currentPreset.pedal_mode != BassPedal) {
       switch (state) {
           case playingSound:
+          case selectSound:
           case playingPreset:
             display(line1right, on ? right_text : "");
       }
