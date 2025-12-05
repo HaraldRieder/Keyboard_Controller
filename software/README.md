@@ -126,8 +126,10 @@ Wurde das Preset verändert, so wird man gefragt, ob man das Preset speichern m�
 
 Wurde das Preset nicht verändert, so wird man gefragt, ob man das Preset kopieren möchte. Mit dem Modulationsrad lässt sich das Ziel für die Kopieraktion wählen. Der rote Taster bestätigt das Kopieren. Mit dem schwarzen Taster lassen sich die Änderungen verwerfen.
 
-Nochmaliges Drücken des schwarzen Tasters wechselt in den Modus _Spielen von Sounds_. Mit dem kleinen Regler wird nun der Sound innderhalb der Bank gewählt. Wenn der rote Taster gedrückt ist, dann kann mit dem Modulationsrad die Sound-Bank gewählt werden.
+Nochmaliges Drücken des schwarzen Tasters wechselt in den Modus _Spielen von Sounds_. Mit dem kleinen Regler wird nun der Sound innderhalb der Bank gewählt. 
 
+Nach Drücken des roten Tasters gelangt man in den Modus _Auswahl eines Sounds_ und Modulations- und Tonhöhenrad dienen zur Auswahl von Bank bzw. Sound. 
+Dabei blinkt die Anzeige. Drücken des schwarzen Tasters wechselt zurück in den Modus _Spielen von Sounds_, das Blinken hört auf.
 
 ### Editieren eines Preset
 
