@@ -275,7 +275,7 @@ enum State {
 };
 
 enum Event {
-  enterBtn, exitBtn, modWheel, pitchWheel, noteEvent, volumeKnob, selectKnob
+  enterBtn, exitBtn, modWheel, pitchWheel, noteEvent, selectKnob
 };
 
 void displaySound(SoXXLBank bank, int program_number);

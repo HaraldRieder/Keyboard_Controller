@@ -1482,7 +1482,7 @@ SoXXLMessage toVolumeMsg(byte value) {
   SoXXL_msg.buff[0] = 0xf0;
   SoXXL_msg.buff[1] = 0x7f;
   SoXXL_msg.buff[2] = 0x7f;
-  SoXXL_msg.buff[3] = 0x01;
+  SoXXL_msg.buff[3] = 0x04;
   SoXXL_msg.buff[4] = 0x01;
   SoXXL_msg.buff[5] = 0x00;
   SoXXL_msg.buff[6] = value;
